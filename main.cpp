@@ -6,6 +6,7 @@
 #include <queue>
 #include <iostream>
 #include <atomic>
+#include <unordered_set>
 
 // Constants
 const bool FAST_MODE = true;
@@ -22,6 +23,8 @@ float maxIterations = 100;
 // Limit the maximum of threads used by the app
 std::atomic<int> runningThreads(0);
 const int maxThreads = partsX * partsY; // std::thread::hardware_concurrency();
+std::queue<int> pendingTiles;
+std::unordered_set<int> tilesScheduled;  // To avoid duplicates in queue
 
 // Camera
 long double cameraX = 0;
@@ -39,7 +42,7 @@ struct Tile {
   Color* pixels;
   bool ready = false;
   bool hasComputed = false;
-  int updateCount = 0;
+  int generation = 0;
 };
 
 // List of all the tiles
@@ -68,7 +71,7 @@ Color getColorFromPoint(long double a, long double b, float maxIterations) {
 }
 
 // Compute a tile in the background
-void computeTileThread(int tileIndex, long double cx, long double cy, long double z) {
+void computeTileThread(int tileIndex, long double cx, long double cy, long double z, int threadGen) {
   // Get the tile
   Tile& tile = tiles[tileIndex];
   if (tile.hasComputed) return;
@@ -77,7 +80,6 @@ void computeTileThread(int tileIndex, long double cx, long double cy, long doubl
   runningThreads.fetch_add(1, std::memory_order_relaxed);
 
   // Compute the pixels
-  int currentUpdateCount = tile.updateCount;
   Color* pixels = new Color[partWidth * partHeight];
   for (int y = 0; y < partHeight; y++) {
     for (int x = 0; x < partWidth; x++) {
@@ -88,18 +90,27 @@ void computeTileThread(int tileIndex, long double cx, long double cy, long doubl
   }
   
   // Lock tile to save computed pixels
-  {
-    std::lock_guard<std::mutex> lock(tile.texMutex);
-    if (currentUpdateCount == tile.updateCount) {
+  if (tiles[tileIndex].generation == threadGen) {
+    {
+      std::lock_guard<std::mutex> lock(tile.texMutex);
       tile.pixels = pixels;
       tile.hasComputed = true;
       tile.ready = false;
-      tile.updateCount++;
     }
+  } else {
+    delete[] pixels;
   }
 
   // Notify that a thread has finished
   runningThreads.fetch_sub(1, std::memory_order_relaxed);
+}
+
+// Add a thread waiting to be computed to a queue
+void scheduleTile(int tileIndex) {
+  if (tilesScheduled.find(tileIndex) == tilesScheduled.end()) {
+    pendingTiles.push(tileIndex);
+    tilesScheduled.insert(tileIndex);
+  }
 }
 
 // Launch all tile updates in parallel
@@ -107,15 +118,13 @@ void updateTilesParallel(long double cx, long double cy, long double z) {
   if (FAST_MODE) {
     int tileCount = tiles.size();
     for (int i = 0; i < tileCount; ++i) {
-      // Check if too many threads are already running
-      if (runningThreads.load(std::memory_order_relaxed) >= maxThreads) { continue; }
-
-      std::thread(computeTileThread, i, cx, cy, z).detach();
+      if (tiles[i].hasComputed) continue;
+      scheduleTile(i);
     }
   } else {
     std::vector<std::thread> workers;
     int tileCount = tiles.size();
-    for (int i = 0; i < tileCount; ++i) { workers.emplace_back(computeTileThread, i, cx, cy, z);  }
+    for (int i = 0; i < tileCount; ++i) { workers.emplace_back(computeTileThread, i, cx, cy, z, 0);  }
     for (auto& t : workers) t.join(); // wait all
   }
 }
@@ -176,6 +185,17 @@ int main() {
       updateTilesParallel(cameraX, cameraY, zoom);
     }
 
+    // Compute the threads waiting in the queue when there is space available
+    while (runningThreads.load(std::memory_order_relaxed) < maxThreads && !pendingTiles.empty()) {
+      int tileIndex = pendingTiles.front();
+      pendingTiles.pop();
+      tilesScheduled.erase(tileIndex);
+      Tile& tile = tiles[tileIndex];
+      tile.generation++;
+      int threadGen = tile.generation;
+      std::thread(computeTileThread, tileIndex, cameraX, cameraY, zoom, threadGen).detach();
+    }
+    
     // Iterate trough each tile to check if needed to copy pixels to texture
     for (auto& tile : tiles) {
       if (!tile.hasComputed || tile.ready) continue;

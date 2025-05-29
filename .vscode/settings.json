@@ -53,6 +53,7 @@
     "typeinfo": "cpp",
     "unordered_map": "cpp",
     "variant": "cpp",
-    "vector": "cpp"
+    "vector": "cpp",
+    "unordered_set": "cpp"
   }
 }
