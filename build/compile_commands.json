@@ -1,0 +1,8 @@
+[
+{
+  "directory": "/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build",
+  "command": "/usr/bin/c++  -isystem /opt/homebrew/Cellar/raylib/5.5/include -g -std=gnu++11 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include -o CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.o -c /Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/main.cpp",
+  "file": "/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/main.cpp",
+  "output": "CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.o"
+}
+]

@@ -1,0 +1,1 @@
+/usr/bin/c++ -g -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names -L/opt/homebrew/opt/ruby/lib "CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.o" -o new-mandelbrot-fractal  /opt/homebrew/Cellar/raylib/5.5/lib/libraylib.dylib -L/opt/homebrew/Cellar/raylib/5.5/lib -lraylib
