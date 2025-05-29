@@ -1,18 +1,13 @@
 #include "raylib.h"
-#include <vector>
 #include <thread>
-#include <cmath>
-#include <mutex>
-#include <queue>
-#include <iostream>
-#include <atomic>
-#include <unordered_set>
+
 
 // Constants
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
 const int partsX = 16;
 const int partsY = 9;
+const bool showParts = false;
 const int partWidth = SCREEN_WIDTH / partsX;
 const int partHeight = SCREEN_HEIGHT / partsY;
 const float cameraSpeed = 500.0f;
@@ -173,6 +168,9 @@ int main() {
               { 0, 0, (float) partWidth, (float) partHeight },
               { (float) (tile.tileX * partWidth), (float) (tile.tileY * partHeight) },
             WHITE);
+            
+            // Only for debug
+            if (showParts) { DrawRectangleLines(tile.tileX * partWidth, tile.tileY * partHeight, partWidth, partHeight, RED); }
           }
         }
       }
