@@ -5,8 +5,10 @@
 #include <mutex>
 #include <queue>
 #include <iostream>
+#include <atomic>
 
 // Constants
+const bool FAST_MODE = true;
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
 const int partsX = 16;
@@ -17,6 +19,10 @@ const float cameraSpeed = 500.0f;
 const float zoomSpeed = 1.5f;
 float maxIterations = 100;
 
+// Limit the maximum of threads used by the app
+std::atomic<int> runningThreads(0);
+const int maxThreads = partsX * partsY; // std::thread::hardware_concurrency();
+
 // Camera
 long double cameraX = 0;
 long double cameraY = 0;
@@ -25,22 +31,19 @@ long double zoom = SCREEN_WIDTH / 3;
 
 // Tile structure
 struct Tile {
+  std::mutex texMutex;
+
   RenderTexture2D texture;
   int tileX, tileY;
+
+  Color* pixels;
   bool ready = false;
-  std::mutex texMutex;
+  bool hasComputed = false;
+  int updateCount = 0;
 };
+
 // List of all the tiles
 std::vector<Tile> tiles(partsX * partsY);
-
-// Used to compute in parallel
-struct TileUpdate {
-  int tileIndex;
-  Color* pixels;
-};
-std::mutex queueMutex;
-std::condition_variable queueCond;
-std::queue<TileUpdate> uploadQueue;
 
 // Fractal Coloring Function
 const long double pisqrtpi = PI * sqrt(PI);
@@ -65,10 +68,17 @@ Color getColorFromPoint(long double a, long double b, float maxIterations) {
 }
 
 // Compute a tile in the background
-void computeTileThread(int tileIndex, float cx, float cy, float z) {
+void computeTileThread(int tileIndex, long double cx, long double cy, long double z) {
+  // Get the tile
   Tile& tile = tiles[tileIndex];
-  Color* pixels = new Color[partWidth * partHeight];
+  if (tile.hasComputed) return;
 
+  // Notify that a thread has been created
+  runningThreads.fetch_add(1, std::memory_order_relaxed);
+
+  // Compute the pixels
+  int currentUpdateCount = tile.updateCount;
+  Color* pixels = new Color[partWidth * partHeight];
   for (int y = 0; y < partHeight; y++) {
     for (int x = 0; x < partWidth; x++) {
       long double posx = (x + tile.tileX * partWidth - SCREEN_WIDTH / 2.0) / z + cx;
@@ -76,26 +86,45 @@ void computeTileThread(int tileIndex, float cx, float cy, float z) {
       pixels[y * partWidth + x] = getColorFromPoint(posx, posy, maxIterations);
     }
   }
-
-  // Push to upload queue
+  
+  // Lock tile to save computed pixels
   {
-    std::lock_guard<std::mutex> lock(queueMutex);
-    uploadQueue.push({tileIndex, pixels});
+    std::lock_guard<std::mutex> lock(tile.texMutex);
+    if (currentUpdateCount == tile.updateCount) {
+      tile.pixels = pixels;
+      tile.hasComputed = true;
+      tile.ready = false;
+      tile.updateCount++;
+    }
   }
-  queueCond.notify_one();
+
+  // Notify that a thread has finished
+  runningThreads.fetch_sub(1, std::memory_order_relaxed);
 }
 
 // Launch all tile updates in parallel
-void updateTilesParallel(float cx, float cy, float z) {
-  std::vector<std::thread> workers;
-  int tileCount = tiles.size();
-  for (int i = 0; i < tileCount; ++i) { workers.emplace_back(computeTileThread, i, cx, cy, z);  }
-  for (auto& t : workers) t.join(); // wait all
+void updateTilesParallel(long double cx, long double cy, long double z) {
+  if (FAST_MODE) {
+    int tileCount = tiles.size();
+    for (int i = 0; i < tileCount; ++i) {
+      // Check if too many threads are already running
+      if (runningThreads.load(std::memory_order_relaxed) >= maxThreads) { continue; }
+
+      std::thread(computeTileThread, i, cx, cy, z).detach();
+    }
+  } else {
+    std::vector<std::thread> workers;
+    int tileCount = tiles.size();
+    for (int i = 0; i < tileCount; ++i) { workers.emplace_back(computeTileThread, i, cx, cy, z);  }
+    for (auto& t : workers) t.join(); // wait all
+  }
 }
 
 
 // Main function
 int main() {
+  std::cout << maxThreads << std::endl;
+
   InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Mandelbrot Fractal - Multi-threaded");
   SetTargetFPS(60);
 
@@ -116,6 +145,7 @@ int main() {
   // First render
   updateTilesParallel(cameraX, cameraY, zoom);
 
+  // Main loop
   while (!WindowShouldClose()) {
     // Camera movement and zoom
     if (IsKeyDown(KEY_W)) { cameraY -= cameraSpeed / zoom / 60; }
@@ -133,35 +163,30 @@ int main() {
       maxIterations += 100;
       updateTilesParallel(cameraX, cameraY, zoom);
     }
-
-    // Reset view
-    if (IsKeyPressed(KEY_R)) {
+    if (IsKeyPressed(KEY_R)) { // Reset view
       cameraX = 0;
       cameraY = 0;
       zoom = SCREEN_WIDTH / 3;
+      updateTilesParallel(cameraX, cameraY, zoom);
     }
-
-    // Detect camera change
-    if (cameraX != prevCamX || cameraY != prevCamY || zoom != prevZoom) {
+    if (cameraX != prevCamX || cameraY != prevCamY || zoom != prevZoom) { // Detect camera change
       prevCamX = cameraX;
       prevCamY = cameraY;
       prevZoom = zoom;
       updateTilesParallel(cameraX, cameraY, zoom);
     }
 
-    // Update the tiles in parallel
-    {
-      std::lock_guard<std::mutex> lock(queueMutex);
-      while (!uploadQueue.empty()) {
-        TileUpdate update = uploadQueue.front();
-        uploadQueue.pop();
-        Tile& tile = tiles[update.tileIndex];
-        UpdateTexture(tile.texture.texture, update.pixels);
+    // Iterate trough each tile to check if needed to copy pixels to texture
+    for (auto& tile : tiles) {
+      if (!tile.hasComputed || tile.ready) continue;
+      {
+        std::lock_guard<std::mutex> lock(tile.texMutex);
+        UpdateTexture(tile.texture.texture, tile.pixels);
+        delete[] tile.pixels;
         tile.ready = true;
-        delete[] update.pixels;
+        tile.hasComputed = false;
       }
     }
-
 
     BeginDrawing();
       ClearBackground(BLACK);
@@ -169,11 +194,13 @@ int main() {
       // Draw all tiles
       for (auto& tile : tiles) {
         if (tile.ready) {
-          std::lock_guard<std::mutex> lock(tile.texMutex);
-          DrawTextureRec(tile.texture.texture,
-            { 0, 0, (float) partWidth, (float) partHeight },
-            { (float) (tile.tileX * partWidth), (float) (tile.tileY * partHeight) },
-          WHITE);
+          {
+            std::lock_guard<std::mutex> lock(tile.texMutex);
+            DrawTextureRec(tile.texture.texture,
+              { 0, 0, (float) partWidth, (float) partHeight },
+              { (float) (tile.tileX * partWidth), (float) (tile.tileY * partHeight) },
+            WHITE);
+          }
         }
       }
 
