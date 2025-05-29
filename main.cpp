@@ -9,7 +9,6 @@
 #include <unordered_set>
 
 // Constants
-const bool FAST_MODE = true;
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
 const int partsX = 16;
@@ -19,12 +18,6 @@ const int partHeight = SCREEN_HEIGHT / partsY;
 const float cameraSpeed = 500.0f;
 const float zoomSpeed = 1.5f;
 float maxIterations = 100;
-
-// Limit the maximum of threads used by the app
-std::atomic<int> runningThreads(0);
-const int maxThreads = partsX * partsY; // std::thread::hardware_concurrency();
-std::queue<int> pendingTiles;
-std::unordered_set<int> tilesScheduled;  // To avoid duplicates in queue
 
 // Camera
 long double cameraX = 0;
@@ -42,7 +35,6 @@ struct Tile {
   Color* pixels;
   bool ready = false;
   bool hasComputed = false;
-  int generation = 0;
 };
 
 // List of all the tiles
@@ -71,13 +63,10 @@ Color getColorFromPoint(long double a, long double b, float maxIterations) {
 }
 
 // Compute a tile in the background
-void computeTileThread(int tileIndex, long double cx, long double cy, long double z, int threadGen) {
+void computeTileThread(int tileIndex, long double cx, long double cy, long double z) {
   // Get the tile
   Tile& tile = tiles[tileIndex];
   if (tile.hasComputed) return;
-
-  // Notify that a thread has been created
-  runningThreads.fetch_add(1, std::memory_order_relaxed);
 
   // Compute the pixels
   Color* pixels = new Color[partWidth * partHeight];
@@ -90,50 +79,25 @@ void computeTileThread(int tileIndex, long double cx, long double cy, long doubl
   }
   
   // Lock tile to save computed pixels
-  if (tiles[tileIndex].generation == threadGen) {
-    {
-      std::lock_guard<std::mutex> lock(tile.texMutex);
-      tile.pixels = pixels;
-      tile.hasComputed = true;
-      tile.ready = false;
-    }
-  } else {
-    delete[] pixels;
-  }
-
-  // Notify that a thread has finished
-  runningThreads.fetch_sub(1, std::memory_order_relaxed);
-}
-
-// Add a thread waiting to be computed to a queue
-void scheduleTile(int tileIndex) {
-  if (tilesScheduled.find(tileIndex) == tilesScheduled.end()) {
-    pendingTiles.push(tileIndex);
-    tilesScheduled.insert(tileIndex);
+  {
+    std::lock_guard<std::mutex> lock(tile.texMutex);
+    tile.pixels = pixels;
+    tile.hasComputed = true;
+    tile.ready = false;
   }
 }
 
 // Launch all tile updates in parallel
 void updateTilesParallel(long double cx, long double cy, long double z) {
-  if (FAST_MODE) {
-    int tileCount = tiles.size();
-    for (int i = 0; i < tileCount; ++i) {
-      if (tiles[i].hasComputed) continue;
-      scheduleTile(i);
-    }
-  } else {
-    std::vector<std::thread> workers;
-    int tileCount = tiles.size();
-    for (int i = 0; i < tileCount; ++i) { workers.emplace_back(computeTileThread, i, cx, cy, z, 0);  }
-    for (auto& t : workers) t.join(); // wait all
-  }
+  std::vector<std::thread> workers;
+  int tileCount = tiles.size();
+  for (int i = 0; i < tileCount; ++i) { workers.emplace_back(computeTileThread, i, cx, cy, z);  }
+  for (auto& t : workers) t.join(); // wait all
 }
 
 
 // Main function
 int main() {
-  std::cout << maxThreads << std::endl;
-
   InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Mandelbrot Fractal - Multi-threaded");
   SetTargetFPS(60);
 
@@ -185,17 +149,6 @@ int main() {
       updateTilesParallel(cameraX, cameraY, zoom);
     }
 
-    // Compute the threads waiting in the queue when there is space available
-    while (runningThreads.load(std::memory_order_relaxed) < maxThreads && !pendingTiles.empty()) {
-      int tileIndex = pendingTiles.front();
-      pendingTiles.pop();
-      tilesScheduled.erase(tileIndex);
-      Tile& tile = tiles[tileIndex];
-      tile.generation++;
-      int threadGen = tile.generation;
-      std::thread(computeTileThread, tileIndex, cameraX, cameraY, zoom, threadGen).detach();
-    }
-    
     // Iterate trough each tile to check if needed to copy pixels to texture
     for (auto& tile : tiles) {
       if (!tile.hasComputed || tile.ready) continue;
