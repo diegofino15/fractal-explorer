@@ -1,6 +1,5 @@
 #include "raylib.h"
 #include <thread>
-#include <iostream>
 
 
 // Constants
@@ -10,7 +9,7 @@ const int SCREEN_HEIGHT = 720;
 const int SET = 0;
 
 // Detaches the threads, makes the app smoother but can cause a lot of visual glitches at high iterations and big zoom
-const bool FAST_MODE = true;
+const bool FAST_MODE = false;
 // Should remove black screens, but slows down the app
 const bool USE_OLD_TEXTURES = true;
 
@@ -23,7 +22,7 @@ const bool SHOW_PARTS = false;
 // What change in zoom should trigger a re-render of the view (0.5 -> 50%)
 const float zoomAceptedChange = 0.25f;
 // What change in position should trigger a re-render of the view
-const float cameraAceptedChange = 1.0f;
+const float cameraAceptedChange = 0.5f;
 
 // Camera
 long double cameraX = 0;
