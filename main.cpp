@@ -1,23 +1,31 @@
 #include "raylib.h"
 #include <thread>
+#include <iostream>
 
 
 // Constants
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
-const bool SHOW_PARTS = true;
-const bool FAST_MODE = true;
 const bool JULIA_SET = false;
 
-// What change in zoom should trigger a re-render of the view
-const float zoomAceptedChange = 0.5f;
-// What change in position
-const float cameraAceptedChange = 1.0f;
+// Detaches the threads, makes the app smoother but can cause a lot of visual glitches at high iterations and big zoom
+const bool FAST_MODE = true;
+// Should remove black screens, but slows down the app
+const bool USE_OLD_TEXTURES = true;
 
+// How many horizontal and vertical threads to create
 const int partsX = 16;
 const int partsY = 9;
-const int partWidth = SCREEN_WIDTH / partsX;
-const int partHeight = SCREEN_HEIGHT / partsY;
+// Debug tool to visualize the individual threads
+const bool SHOW_PARTS = true;
+
+// What change in zoom should trigger a re-render of the view (0.5 -> 50%)
+const float zoomAceptedChange = 0.25f;
+// What change in position should trigger a re-render of the view
+const float cameraAceptedChange = 1.0f;
+
+
+// CODE //
 
 // Camera
 long double cameraX = 0;
@@ -26,15 +34,18 @@ const float cameraSpeed = 500.0f;
 long double zoom = 500;
 const float zoomSpeed = 1.5f;
 float maxIterations = 100;
+const int partWidth = SCREEN_WIDTH / partsX;
+const int partHeight = SCREEN_HEIGHT / partsY;
 
 // Tile structure
 struct Tile {
   std::mutex texMutex;
 
-  RenderTexture2D texture;
+  RenderTexture2D texture, oldTexture;
   int tileX, tileY;
 
   long double a1, b1, a2, b2;
+  long double olda1, oldb1, olda2, oldb2;
   int generation = 0;
 
   Color* pixels;
@@ -157,7 +168,6 @@ void computeTileThread(int tileIndex, long double cx, long double cy, long doubl
   // Lock tile to save computed pixels
   {
     std::lock_guard<std::mutex> lock(tile.texMutex);
-
     if (tile.generation <= generation) {
       tile.pixels = pixels;
       tile.hasComputed = true;
@@ -228,24 +238,27 @@ int main() {
     // Change number of iterations
     if (IsKeyPressed(KEY_LEFT)) {
       maxIterations -= 100;
+      generation++;
       customUpdateTilesParallel(cameraX, cameraY, zoom, generation);
     }
     if (IsKeyPressed(KEY_RIGHT)) {
       maxIterations += 100;
+      generation++;
       customUpdateTilesParallel(cameraX, cameraY, zoom, generation);
     }
     if (IsKeyPressed(KEY_R)) { // Reset view
       cameraX = 0;
       cameraY = 0;
       zoom = SCREEN_WIDTH / 3;
+      generation++;
       customUpdateTilesParallel(cameraX, cameraY, zoom, generation);
     }
 
     // Automatically re-render the fractal if the view moved too much
     float acceptedChange = 0.1f / zoom * 1000 * cameraAceptedChange;
     if (IsKeyPressed(KEY_SPACE) || abs(cameraX - prevCamX) >= acceptedChange || abs(cameraY - prevCamY) >= acceptedChange || abs(1 - (zoom / prevZoom)) >= zoomAceptedChange) {
-      customUpdateTilesParallel(cameraX, cameraY, zoom, generation);
       generation++;
+      customUpdateTilesParallel(cameraX, cameraY, zoom, generation);
     }
 
     // Iterate trough each tile to check if needed to copy pixels to texture
@@ -253,9 +266,21 @@ int main() {
       if (!tile.hasComputed) continue;
       {
         std::lock_guard<std::mutex> lock(tile.texMutex);
-        UpdateTexture(tile.texture.texture, tile.pixels);
 
+        // To not get visual glitches
+        if (USE_OLD_TEXTURES) {
+          Image tempImage = LoadImageFromTexture(tile.texture.texture);
+          UnloadTexture(tile.oldTexture.texture);
+          tile.oldTexture.texture = LoadTextureFromImage(tempImage);
+          UnloadImage(tempImage);
+          tile.olda1 = tile.a1;
+          tile.oldb1 = tile.b1;
+          tile.olda2 = tile.a2;
+          tile.oldb2 = tile.b2;
+        }
+        
         // Save the old camera position from when it was computed
+        UpdateTexture(tile.texture.texture, tile.pixels);
         tile.a1 = (tile.tileX * partWidth - SCREEN_WIDTH / 2.0) / prevZoom + prevCamX;
         tile.b1 = (tile.tileY * partHeight - SCREEN_HEIGHT / 2.0) / prevZoom + prevCamY;
         tile.a2 = ((tile.tileX + 1) * partWidth - SCREEN_WIDTH / 2.0) / prevZoom + prevCamX;
@@ -269,6 +294,29 @@ int main() {
     // Drawing
     BeginDrawing();
       ClearBackground(BLACK);
+
+      // Draw the old textures to stop visual glitches
+      if (USE_OLD_TEXTURES) {
+        for (auto& tile : tiles) {
+          {
+            std::lock_guard<std::mutex> lock(tile.texMutex);
+
+            // Calculate the right position to show the old pixels, based on where they were computed
+            float startX = (tile.olda1 - cameraX) * zoom + SCREEN_WIDTH / 2.0;
+            float startY = (tile.oldb1 - cameraY) * zoom + SCREEN_HEIGHT / 2.0;
+            float endX = (tile.olda2 - cameraX) * zoom + SCREEN_WIDTH / 2.0;
+            float endY = (tile.oldb2 - cameraY) * zoom + SCREEN_HEIGHT / 2.0;
+            
+            DrawTexturePro(tile.oldTexture.texture,
+              { 0, 0, (float) partWidth, (float) partHeight },
+              { startX, startY, endX - startX, endY - startY },
+              { 0, 0 }, 0, WHITE);
+            
+            // Only for debug
+            if (SHOW_PARTS) { DrawRectangleLines(startX, startY, endX - startX, endY - startY, RED); }
+          }
+        }
+      }
 
       // Draw all tiles
       for (auto& tile : tiles) {
