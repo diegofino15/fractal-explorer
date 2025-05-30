@@ -5,9 +5,12 @@
 // Constants
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
+const bool SHOW_PARTS = false;
+const bool FAST_MODE = true;
+const bool JULIA_SET = false;
+
 const int partsX = 16;
 const int partsY = 9;
-const bool showParts = false;
 const int partWidth = SCREEN_WIDTH / partsX;
 const int partHeight = SCREEN_HEIGHT / partsY;
 
@@ -19,11 +22,6 @@ long double zoom = 500;
 const float zoomSpeed = 1.5f;
 float maxIterations = 100;
 
-// Julia Set
-const long double julia_ca = -0.7;    // Real part of c
-const long double julia_cb = 0.27015; // Imaginary part of c
-
-
 // Tile structure
 struct Tile {
   std::mutex texMutex;
@@ -31,17 +29,21 @@ struct Tile {
   RenderTexture2D texture;
   int tileX, tileY;
 
+  long double a1, b1, a2, b2;
+  int generation = 0;
+
   Color* pixels;
-  bool ready = false;
   bool hasComputed = false;
 };
 
 // List of all the tiles
 std::vector<Tile> tiles(partsX * partsY);
 
-// Fractal Coloring Function
+
+
+// Mandelbrot set
 const long double pisqrtpi = PI * sqrt(PI);
-Color getColorFromPoint(long double a, long double b, float maxIterations) {
+Color getColorFromPoint_Mandelbrot(long double a, long double b, float maxIterations) {
   long double ca = a;
   long double cb = b;
   int n;
@@ -62,6 +64,8 @@ Color getColorFromPoint(long double a, long double b, float maxIterations) {
 }
 
 // Julia Set
+const long double julia_ca = -0.7;    // Real part of c
+const long double julia_cb = 0.27015; // Imaginary part of c
 Color HSVtoRGB(float h, float s, float v) {
   float r, g, b;
 
@@ -87,8 +91,7 @@ Color HSVtoRGB(float h, float s, float v) {
     255
   };
 }
-
-Color getColorFromPoint_JuliaSet(long double a, long double b, float maxIterations) {
+Color getColorFromPoint_Julia(long double a, long double b, float maxIterations) {
   const long double ca = -0.7;
   const long double cb = 0.27015;
 
@@ -117,11 +120,19 @@ Color getColorFromPoint_JuliaSet(long double a, long double b, float maxIteratio
   return HSVtoRGB(hue, saturation, value);
 }
 
+
+
 // Compute a tile in the background
-void computeTileThread(int tileIndex, long double cx, long double cy, long double z) {
+void computeTileThread(int tileIndex, long double cx, long double cy, long double z, int generation) {
   // Get the tile
   Tile& tile = tiles[tileIndex];
   if (tile.hasComputed) return;
+  
+  // Update generation
+  {
+    std::lock_guard<std::mutex> lock(tile.texMutex);
+    tile.generation = generation;
+  }
 
   // Compute the pixels
   Color* pixels = new Color[partWidth * partHeight];
@@ -129,25 +140,42 @@ void computeTileThread(int tileIndex, long double cx, long double cy, long doubl
     for (int x = 0; x < partWidth; x++) {
       long double posx = (x + tile.tileX * partWidth - SCREEN_WIDTH / 2.0) / z + cx;
       long double posy = (y + tile.tileY * partHeight - SCREEN_HEIGHT / 2.0) / z + cy;
-      pixels[y * partWidth + x] = getColorFromPoint(posx, posy, maxIterations);
+      
+      if (JULIA_SET) {
+        pixels[y * partWidth + x] = getColorFromPoint_Julia(posx, posy, maxIterations);
+      } else {
+        pixels[y * partWidth + x] = getColorFromPoint_Mandelbrot(posx, posy, maxIterations);
+      }
     }
   }
   
   // Lock tile to save computed pixels
   {
     std::lock_guard<std::mutex> lock(tile.texMutex);
-    tile.pixels = pixels;
-    tile.hasComputed = true;
-    tile.ready = false;
+
+    if (tile.generation <= generation) {
+      tile.pixels = pixels;
+      tile.hasComputed = true;
+    }
   }
 }
 
 // Launch all tile updates in parallel
-void updateTilesParallel(long double cx, long double cy, long double z) {
-  std::vector<std::thread> workers;
+void updateTilesParallel(long double cx, long double cy, long double z, int generation) {
   int tileCount = tiles.size();
-  for (int i = 0; i < tileCount; ++i) { workers.emplace_back(computeTileThread, i, cx, cy, z);  }
-  for (auto& t : workers) t.join(); // wait all
+  
+  // Start new detached thread
+  if (FAST_MODE) {
+    for (int i = 0; i < tileCount; ++i) {
+      std::thread([i, cx, cy, z, generation]() {
+        computeTileThread(i, cx, cy, z, generation);
+      }).detach();
+    }
+  } else { 
+    std::vector<std::thread> workers;
+    for (int i = 0; i < tileCount; ++i) { workers.emplace_back(computeTileThread, i, cx, cy, z, generation);  }
+    for (auto& t : workers) t.join(); // wait all
+  }
 }
 
 
@@ -169,9 +197,19 @@ int main() {
   long double prevCamX = cameraX;
   long double prevCamY = cameraY;
   long double prevZoom = zoom;
+  int generation = 2;
+
+  // Make it easier to call the function
+  auto customUpdateTilesParallel = [&prevCamX, &prevCamY, &prevZoom](long double cx, long double cy, long double z, int generation) {
+    prevCamX = cameraX;
+    prevCamY = cameraY;
+    prevZoom = zoom;
+    updateTilesParallel(cameraX, cameraY, zoom, 0);
+  };
 
   // First render
-  updateTilesParallel(cameraX, cameraY, zoom);
+  customUpdateTilesParallel(cameraX, cameraY, zoom, 0);
+  customUpdateTilesParallel(cameraX, cameraY, zoom, 1);
 
   // Main loop
   while (!WindowShouldClose()) {
@@ -185,53 +223,64 @@ int main() {
     // Change number of iterations
     if (IsKeyPressed(KEY_LEFT)) {
       maxIterations -= 100;
-      updateTilesParallel(cameraX, cameraY, zoom);
+      customUpdateTilesParallel(cameraX, cameraY, zoom, generation);
     }
     if (IsKeyPressed(KEY_RIGHT)) {
       maxIterations += 100;
-      updateTilesParallel(cameraX, cameraY, zoom);
+      customUpdateTilesParallel(cameraX, cameraY, zoom, generation);
     }
     if (IsKeyPressed(KEY_R)) { // Reset view
       cameraX = 0;
       cameraY = 0;
       zoom = SCREEN_WIDTH / 3;
-      updateTilesParallel(cameraX, cameraY, zoom);
+      customUpdateTilesParallel(cameraX, cameraY, zoom, generation);
     }
-    if (cameraX != prevCamX || cameraY != prevCamY || zoom != prevZoom) { // Detect camera change
-      prevCamX = cameraX;
-      prevCamY = cameraY;
-      prevZoom = zoom;
-      updateTilesParallel(cameraX, cameraY, zoom);
+
+    // Automatically re-render the fractal if the view moved too much
+    float acceptedChange = 0.1f / zoom * 2000;
+    float zoomAceptedChange = 0.75;
+    if (IsKeyPressed(KEY_SPACE) || abs(cameraX - prevCamX) >= acceptedChange || abs(cameraY - prevCamY) >= acceptedChange || abs(1 - (prevZoom / zoom)) >= zoomAceptedChange) {
+      customUpdateTilesParallel(cameraX, cameraY, zoom, generation);
+      generation++;
     }
 
     // Iterate trough each tile to check if needed to copy pixels to texture
     for (auto& tile : tiles) {
-      if (!tile.hasComputed || tile.ready) continue;
+      if (!tile.hasComputed) continue;
       {
         std::lock_guard<std::mutex> lock(tile.texMutex);
+
         UpdateTexture(tile.texture.texture, tile.pixels);
+        tile.a1 = (tile.tileX * partWidth - SCREEN_WIDTH / 2.0) / prevZoom + prevCamX;
+        tile.b1 = (tile.tileY * partHeight - SCREEN_HEIGHT / 2.0) / prevZoom + prevCamY;
+        tile.a2 = ((tile.tileX + 1) * partWidth - SCREEN_WIDTH / 2.0) / prevZoom + prevCamX;
+        tile.b2 = ((tile.tileY + 1) * partHeight - SCREEN_HEIGHT / 2.0) / prevZoom + prevCamY;
+
         delete[] tile.pixels;
-        tile.ready = true;
         tile.hasComputed = false;
       }
     }
 
+    // Drawing
     BeginDrawing();
       ClearBackground(BLACK);
 
       // Draw all tiles
       for (auto& tile : tiles) {
-        if (tile.ready) {
-          {
-            std::lock_guard<std::mutex> lock(tile.texMutex);
-            DrawTextureRec(tile.texture.texture,
-              { 0, 0, (float) partWidth, (float) partHeight },
-              { (float) (tile.tileX * partWidth), (float) (tile.tileY * partHeight) },
-            WHITE);
-            
-            // Only for debug
-            if (showParts) { DrawRectangleLines(tile.tileX * partWidth, tile.tileY * partHeight, partWidth, partHeight, RED); }
-          }
+        {
+          std::lock_guard<std::mutex> lock(tile.texMutex);
+          float startX = (tile.a1 - cameraX) * zoom + SCREEN_WIDTH / 2.0;
+          float startY = (tile.b1 - cameraY) * zoom + SCREEN_HEIGHT / 2.0;
+          float endX = (tile.a2 - cameraX) * zoom + SCREEN_WIDTH / 2.0;
+          float endY = (tile.b2 - cameraY) * zoom + SCREEN_HEIGHT / 2.0;
+          
+          DrawTexturePro(tile.texture.texture,
+            { 0, 0, (float) partWidth, (float) partHeight },
+            { startX, startY, endX - startX, endY - startY },
+            { 0, 0 }, 0, WHITE);
+          
+          // Only for debug
+          if (SHOW_PARTS) { DrawRectangleLines(startX, startY, endX - startX, endY - startY, BLUE); }
         }
       }
 
@@ -239,6 +288,7 @@ int main() {
       DrawText(TextFormat("Iterations: %.0f", maxIterations), 10, 10, 20, WHITE);
       DrawText(TextFormat("Threads: %.0f", (float) partsX * partsY), 10, 30, 20, WHITE);
       DrawText(TextFormat("Zoom: %.2f", zoom), 10, 50, 20, WHITE);
+      DrawText(TextFormat("Generation: %.0f", (float) generation), 10, 70, 20, WHITE);
     EndDrawing();
   }
 
