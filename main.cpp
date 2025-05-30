@@ -10,14 +10,18 @@ const int partsY = 9;
 const bool showParts = false;
 const int partWidth = SCREEN_WIDTH / partsX;
 const int partHeight = SCREEN_HEIGHT / partsY;
-const float cameraSpeed = 500.0f;
-const float zoomSpeed = 1.5f;
-float maxIterations = 100;
 
 // Camera
 long double cameraX = 0;
 long double cameraY = 0;
-long double zoom = SCREEN_WIDTH / 3;
+const float cameraSpeed = 500.0f;
+long double zoom = 500;
+const float zoomSpeed = 1.5f;
+float maxIterations = 100;
+
+// Julia Set
+const long double julia_ca = -0.7;    // Real part of c
+const long double julia_cb = 0.27015; // Imaginary part of c
 
 
 // Tile structure
@@ -55,6 +59,62 @@ Color getColorFromPoint(long double a, long double b, float maxIterations) {
     color.b = ((int)(n * pisqrtpi)) % 255;
   }
   return color;
+}
+
+// Julia Set
+Color HSVtoRGB(float h, float s, float v) {
+  float r, g, b;
+
+  int i = int(h * 6);
+  float f = h * 6 - i;
+  float p = v * (1 - s);
+  float q = v * (1 - f * s);
+  float t = v * (1 - (1 - f) * s);
+
+  switch (i % 6) {
+    case 0: r = v; g = t; b = p; break;
+    case 1: r = q; g = v; b = p; break;
+    case 2: r = p; g = v; b = t; break;
+    case 3: r = p; g = q; b = v; break;
+    case 4: r = t; g = p; b = v; break;
+    case 5: r = v; g = p; b = q; break;
+  }
+
+  return Color{
+    (unsigned char)(r * 255),
+    (unsigned char)(g * 255),
+    (unsigned char)(b * 255),
+    255
+  };
+}
+
+Color getColorFromPoint_JuliaSet(long double a, long double b, float maxIterations) {
+  const long double ca = -0.7;
+  const long double cb = 0.27015;
+
+  int n = 0;
+  long double aa, bb;
+
+  for (; n < maxIterations; ++n) {
+    if ((a*a + b*b) > 4.0) break;
+    aa = a * a - b * b + ca;
+    bb = 2.0 * a * b + cb;
+    a = aa;
+    b = bb;
+  }
+
+  if (n == maxIterations) return BLACK; // Inside set
+
+  // Smooth coloring
+  long double zn = sqrt(a*a + b*b);
+  long double smooth = n + 1 - log2(log2(zn));
+
+  float hue = (float)(0.95f + 20.0f * smooth / maxIterations); // tweak multiplier
+  hue = fmod(hue, 1.0f); // keep hue in [0,1]
+  float saturation = 0.8f;
+  float value = 1.0f;
+
+  return HSVtoRGB(hue, saturation, value);
 }
 
 // Compute a tile in the background
