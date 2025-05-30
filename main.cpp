@@ -6,7 +6,8 @@
 // Constants
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
-const bool JULIA_SET = false;
+// What set to display | 0 : Mandebrot | 1 : Julia | 2 : Burning ship | 3 : Tricorn | 4 : Phoenix
+const int SET = 0;
 
 // Detaches the threads, makes the app smoother but can cause a lot of visual glitches at high iterations and big zoom
 const bool FAST_MODE = true;
@@ -17,15 +18,12 @@ const bool USE_OLD_TEXTURES = true;
 const int partsX = 16;
 const int partsY = 9;
 // Debug tool to visualize the individual threads
-const bool SHOW_PARTS = true;
+const bool SHOW_PARTS = false;
 
 // What change in zoom should trigger a re-render of the view (0.5 -> 50%)
 const float zoomAceptedChange = 0.25f;
 // What change in position should trigger a re-render of the view
 const float cameraAceptedChange = 1.0f;
-
-
-// CODE //
 
 // Camera
 long double cameraX = 0;
@@ -37,25 +35,9 @@ float maxIterations = 100;
 const int partWidth = SCREEN_WIDTH / partsX;
 const int partHeight = SCREEN_HEIGHT / partsY;
 
-// Tile structure
-struct Tile {
-  std::mutex texMutex;
-
-  RenderTexture2D texture, oldTexture;
-  int tileX, tileY;
-
-  long double a1, b1, a2, b2;
-  long double olda1, oldb1, olda2, oldb2;
-  int generation = 0;
-
-  Color* pixels;
-  bool hasComputed = false;
-};
-
-// List of all the tiles
-std::vector<Tile> tiles(partsX * partsY);
 
 
+// DEFINITION OF THE SETS //
 
 // Mandelbrot set
 const long double pisqrtpi = PI * sqrt(PI);
@@ -64,19 +46,26 @@ Color getColorFromPoint_Mandelbrot(long double a, long double b, float maxIterat
   long double cb = b;
   int n;
   long double aa, bb;
-  for (n = 0; (abs(a + b) <= 16) && (n < maxIterations); n++) {
+  for (n = 0; (a * a + b * b <= 16) && (n < maxIterations); n++) {
     aa = a * a - b * b + ca;
-    b = 2.0 * a * b + cb;
+    bb = 2.0 * a * b + cb;
     a = aa;
+    b = bb;
   }
-  Color color = BLACK;
-  if (n < maxIterations) {
-    color.a = 255;
-    color.r = ((int)(n * PI)) % 255;
-    color.g = n % 255;
-    color.b = ((int)(n * pisqrtpi)) % 255;
-  }
-  return color;
+
+  if (n >= maxIterations) return BLACK;
+
+  // --- Smooth coloring ---
+  float zn = sqrt(a * a + b * b);
+  float smooth = n + 1 - log(log(zn)) / log(2.0);
+  float t = smooth / maxIterations; // Normalized [0..1]
+
+  // --- Orange/Yellow gradient ---
+  unsigned char r = (unsigned char)(255 * t);                      // Full red
+  unsigned char g = (unsigned char)(200 * sqrt(t));                // Green increases slowly
+  unsigned char bl = (unsigned char)(30 * (1.0 - t));              // Low blue for warmth
+
+  return Color{r, g, bl, 255};
 }
 
 // Julia Set
@@ -108,16 +97,13 @@ Color HSVtoRGB(float h, float s, float v) {
   };
 }
 Color getColorFromPoint_Julia(long double a, long double b, float maxIterations) {
-  const long double ca = -0.7;
-  const long double cb = 0.27015;
-
   int n = 0;
   long double aa, bb;
 
   for (; n < maxIterations; ++n) {
     if ((a*a + b*b) > 4.0) break;
-    aa = a * a - b * b + ca;
-    bb = 2.0 * a * b + cb;
+    aa = a * a - b * b + julia_ca;
+    bb = 2.0 * a * b + julia_cb;
     a = aa;
     b = bb;
   }
@@ -136,7 +122,107 @@ Color getColorFromPoint_Julia(long double a, long double b, float maxIterations)
   return HSVtoRGB(hue, saturation, value);
 }
 
+// Burning ship
+Color getColorFromPoint_BurningShip(long double a, long double b, int maxIterations) {
+    long double x = 0, y = 0;
+    int n = 0;
+    while (x*x + y*y <= 4 && n < maxIterations) {
+        long double xtemp = x*x - y*y + a;
+        y = fabs(2 * x * y) + b;
+        x = fabs(xtemp);
+        n++;
+    }
 
+    float t = (float)n / maxIterations;
+    return (n == maxIterations) ? BLACK : Color{(unsigned char)(9*(1-t)*t*t*t*255),
+                                                 (unsigned char)(15*(1-t)*(1-t)*t*t*255),
+                                                 (unsigned char)(8.5*(1-t)*(1-t)*(1-t)*t*255), 255};
+}
+
+// Tricorn
+Color getColorFromPoint_Tricorn(long double a, long double b, int maxIterations) {
+    long double x = 0, y = 0;
+    int n = 0;
+    while (x*x + y*y <= 4 && n < maxIterations) {
+        long double xtemp = x*x - y*y + a;
+        y = -2 * x * y + b;
+        x = xtemp;
+        n++;
+    }
+
+    float t = (float)n / maxIterations;
+    return (n == maxIterations) ? BLACK : Color{(unsigned char)(255*t),
+                                                 (unsigned char)(255*(1-t)),
+                                                 (unsigned char)(128*t), 255};
+}
+
+// Phoenix
+Color getColorFromPoint_Phoenix(long double a, long double b, int maxIterations) {
+    // Complex parameters
+    long double cRe = a;
+    long double cIm = b;
+
+    // Phoenix constant p (can be tweaked for different visuals)
+    const long double pRe = -0.5;
+    const long double pIm = 0.0;
+
+    long double x = 0.0, y = 0.0;      // z_n
+    long double xPrev = 0.0, yPrev = 0.0; // z_{n-1}
+    
+    int n = 0;
+    while ((x*x + y*y <= 4.0) && n < maxIterations) {
+        // Complex multiplication: z_n^2
+        long double x2 = x*x - y*y;
+        long double y2 = 2*x*y;
+
+        // Add c and p * z_{n-1}
+        long double xTemp = x2 + cRe + (pRe * xPrev - pIm * yPrev);
+        long double yTemp = y2 + cIm + (pRe * yPrev + pIm * xPrev);
+
+        xPrev = x;
+        yPrev = y;
+        x = xTemp;
+        y = yTemp;
+
+        n++;
+    }
+
+    if (n == maxIterations) return BLACK;
+
+    // Smooth coloring
+    float zn = sqrt(x*x + y*y);
+    float smooth = n + 1 - log(log(zn)) / log(2.0);
+    float t = smooth / maxIterations;
+
+    // Gradient: smooth rainbow
+    unsigned char r = (unsigned char)(9 * (1 - t) * t * t * t * 255);
+    unsigned char g = (unsigned char)(15 * (1 - t) * (1 - t) * t * t * 255);
+    unsigned char bCol = (unsigned char)(8.5 * (1 - t) * (1 - t) * (1 - t) * t * 255);
+
+    return Color{r, g, bCol, 255};
+}
+
+
+
+// CODE //
+
+// Tile structure
+struct Tile {
+  std::mutex texMutex;
+
+  RenderTexture2D texture, oldTexture;
+  int tileX, tileY;
+
+  long double a1, b1, a2, b2;
+  long double olda1, oldb1, olda2, oldb2;
+  int generation = 0;
+
+  Color* pixels;
+  bool hasComputed = false;
+};
+
+// List of all the tiles
+std::vector<Tile> tiles(partsX * partsY);
 
 // Compute a tile in the background
 void computeTileThread(int tileIndex, long double cx, long double cy, long double z, int generation) {
@@ -157,11 +243,11 @@ void computeTileThread(int tileIndex, long double cx, long double cy, long doubl
       long double posx = (x + tile.tileX * partWidth - SCREEN_WIDTH / 2.0) / z + cx;
       long double posy = (y + tile.tileY * partHeight - SCREEN_HEIGHT / 2.0) / z + cy;
       
-      if (JULIA_SET) {
-        pixels[y * partWidth + x] = getColorFromPoint_Julia(posx, posy, maxIterations);
-      } else {
-        pixels[y * partWidth + x] = getColorFromPoint_Mandelbrot(posx, posy, maxIterations);
-      }
+      if (SET == 0) { pixels[y * partWidth + x] = getColorFromPoint_Mandelbrot(posx, posy, maxIterations); }
+      else if (SET == 1) { pixels[y * partWidth + x] = getColorFromPoint_Julia(posx, posy, maxIterations); }
+      else if (SET == 2) { pixels[y * partWidth + x] = getColorFromPoint_BurningShip(posx, posy, maxIterations); }
+      else if (SET == 3) { pixels[y * partWidth + x] = getColorFromPoint_Tricorn(posx, posy, maxIterations); }
+      else if (SET == 4) { pixels[y * partWidth + x] = getColorFromPoint_Phoenix(posx, posy, maxIterations); }
     }
   }
   
@@ -196,7 +282,7 @@ void updateTilesParallel(long double cx, long double cy, long double z, int gene
 
 // Main function
 int main() {
-  InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Mandelbrot Fractal - Multi-threaded");
+  InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Fractal Explorer - Multi-threaded");
   SetTargetFPS(60);
 
   // Create tile textures
