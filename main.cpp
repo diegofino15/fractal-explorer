@@ -5,9 +5,14 @@
 // Constants
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
-const bool SHOW_PARTS = false;
+const bool SHOW_PARTS = true;
 const bool FAST_MODE = true;
 const bool JULIA_SET = false;
+
+// What change in zoom should trigger a re-render of the view
+const float zoomAceptedChange = 0.5f;
+// What change in position
+const float cameraAceptedChange = 1.0f;
 
 const int partsX = 16;
 const int partsY = 9;
@@ -237,9 +242,8 @@ int main() {
     }
 
     // Automatically re-render the fractal if the view moved too much
-    float acceptedChange = 0.1f / zoom * 2000;
-    float zoomAceptedChange = 0.75;
-    if (IsKeyPressed(KEY_SPACE) || abs(cameraX - prevCamX) >= acceptedChange || abs(cameraY - prevCamY) >= acceptedChange || abs(1 - (prevZoom / zoom)) >= zoomAceptedChange) {
+    float acceptedChange = 0.1f / zoom * 1000 * cameraAceptedChange;
+    if (IsKeyPressed(KEY_SPACE) || abs(cameraX - prevCamX) >= acceptedChange || abs(cameraY - prevCamY) >= acceptedChange || abs(1 - (zoom / prevZoom)) >= zoomAceptedChange) {
       customUpdateTilesParallel(cameraX, cameraY, zoom, generation);
       generation++;
     }
@@ -249,8 +253,9 @@ int main() {
       if (!tile.hasComputed) continue;
       {
         std::lock_guard<std::mutex> lock(tile.texMutex);
-
         UpdateTexture(tile.texture.texture, tile.pixels);
+
+        // Save the old camera position from when it was computed
         tile.a1 = (tile.tileX * partWidth - SCREEN_WIDTH / 2.0) / prevZoom + prevCamX;
         tile.b1 = (tile.tileY * partHeight - SCREEN_HEIGHT / 2.0) / prevZoom + prevCamY;
         tile.a2 = ((tile.tileX + 1) * partWidth - SCREEN_WIDTH / 2.0) / prevZoom + prevCamX;
@@ -269,6 +274,8 @@ int main() {
       for (auto& tile : tiles) {
         {
           std::lock_guard<std::mutex> lock(tile.texMutex);
+
+          // Calculate the right position to show the old pixels, based on where they were computed
           float startX = (tile.a1 - cameraX) * zoom + SCREEN_WIDTH / 2.0;
           float startY = (tile.b1 - cameraY) * zoom + SCREEN_HEIGHT / 2.0;
           float endX = (tile.a2 - cameraX) * zoom + SCREEN_WIDTH / 2.0;
@@ -286,9 +293,9 @@ int main() {
 
       // Draw UI
       DrawText(TextFormat("Iterations: %.0f", maxIterations), 10, 10, 20, WHITE);
-      DrawText(TextFormat("Threads: %.0f", (float) partsX * partsY), 10, 30, 20, WHITE);
-      DrawText(TextFormat("Zoom: %.2f", zoom), 10, 50, 20, WHITE);
-      DrawText(TextFormat("Generation: %.0f", (float) generation), 10, 70, 20, WHITE);
+      DrawText(TextFormat("Generation: %.0f", (float) generation), 10, 30, 20, WHITE);
+      DrawText(TextFormat("Threads: %.0f", (float) partsX * partsY), 10, 50, 20, WHITE);
+      DrawText(TextFormat("Zoom: %.2f | %.2f", zoom, zoom / prevZoom), 10, 70, 20, WHITE);
     EndDrawing();
   }
 
