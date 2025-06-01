@@ -1,6 +1,7 @@
 #include "raylib.h"
 #include <thread>
 #include <unordered_set>
+#include <iostream>
 
 
 // Constants
@@ -8,7 +9,7 @@ const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
 // What set to display | 0 : Mandebrot | 1 : Julia | 2 : Burning ship | 3 : Tricorn | 4 : Phoenix
 const int SET = 0;
-const int MAX_ITERATIONS = 3000;
+const int MAX_ITERATIONS = 1000;
 
 // How many horizontal and vertical tiles to create
 const int partsX = 16;
@@ -259,14 +260,21 @@ Color getColorFromPoint_Lyapunov(long double a, long double b, int maxIterations
 
 // Tile structure
 struct Tile {
+  // Lock used to modify the tile in different threads
   std::mutex texMutex;
 
-  RenderTexture2D texture, oldTexture;
+  // Textures
+  RenderTexture2D texture, oldTexture, veryOldTexture;
   int tileX, tileY;
 
+  // Coordinates of the top left and bottom right of the tile, in world space
   long double a1, b1, a2, b2;
-  long double olda1, oldb1, olda2, oldb2;
+  // Coordinates of the camera when the tile was computed
   long double cx, cy, z;
+
+  // Old positions to draw the old texture
+  long double olda1, oldb1, olda2, oldb2;
+  long double veryolda1, veryoldb1, veryolda2, veryoldb2;
   int generation = 0;
 
   Color* pixels;
@@ -375,6 +383,7 @@ int main() {
       tile.tileY = y;
       tile.texture = LoadRenderTexture(partWidth, partHeight);
       tile.oldTexture = LoadRenderTexture(partWidth, partHeight);
+      tile.veryOldTexture = LoadRenderTexture(partWidth, partHeight);
     }
   }
 
@@ -396,7 +405,6 @@ int main() {
 
   // First render
   customUpdateTilesParallel(cameraX, cameraY, zoom);
-  // customUpdateTilesParallel(cameraX, cameraY, zoom);
 
   // Main loop
   while (!WindowShouldClose()) {
@@ -422,6 +430,11 @@ int main() {
       cameraY = 0;
       zoom = SCREEN_WIDTH / 3;
       customUpdateTilesParallel(cameraX, cameraY, zoom);
+    }
+    if (IsKeyPressed(KEY_C)) { // Output camera position and zoom
+      std::cout << TextFormat("Zoom: %.36f", (float) zoom) << std::endl;
+      std::cout << TextFormat("Camera X: %.36f", (float) cameraX) << std::endl;
+      std::cout << TextFormat("Camera Y: %.36f", (float) cameraY) << std::endl;
     }
 
     // Automatically re-render the fractal if the view moved too much
@@ -450,6 +463,19 @@ int main() {
 
         // To not get visual glitches
         if (USE_OLD_TEXTURES) {
+          // Draw oldTexture on veryOldTexture
+          BeginTextureMode(tile.veryOldTexture);
+            DrawTexturePro(tile.oldTexture.texture,
+              { 0, (float) partHeight, (float) partWidth, (float) -partHeight },
+              { 0, 0, (float) partWidth, (float) partHeight },
+              { 0, 0 }, 0, WHITE);
+          EndTextureMode();
+          tile.veryolda1 = tile.olda1;
+          tile.veryoldb1 = tile.oldb1;
+          tile.veryolda2 = tile.olda2;
+          tile.veryoldb2 = tile.oldb2;
+          
+          // Draw texture on oldTexture
           BeginTextureMode(tile.oldTexture);
             DrawTexturePro(tile.texture.texture,
               { 0, (float) partHeight, (float) partWidth, (float) -partHeight },
@@ -480,6 +506,28 @@ int main() {
 
       // Draw the old textures to stop visual glitches
       if (USE_OLD_TEXTURES) {
+        // Very old texture
+        for (auto& tile : tiles) {
+          {
+            std::lock_guard<std::mutex> lock(tile.texMutex);
+
+            // Calculate the right position to show the old pixels, based on where they were computed
+            float startX = (tile.veryolda1 - cameraX) * zoom + SCREEN_WIDTH / 2.0;
+            float startY = (tile.veryoldb1 - cameraY) * zoom + SCREEN_HEIGHT / 2.0;
+            float endX = (tile.veryolda2 - cameraX) * zoom + SCREEN_WIDTH / 2.0;
+            float endY = (tile.veryoldb2 - cameraY) * zoom + SCREEN_HEIGHT / 2.0;
+            
+            DrawTexturePro(tile.veryOldTexture.texture,
+              { 0, 0, (float) partWidth, (float) partHeight },
+              { startX, startY, endX - startX, endY - startY },
+              { 0, 0 }, 0, WHITE);
+            
+            // Only for debug
+            if (SHOW_PARTS) { DrawRectangleLines(startX, startY, endX - startX, endY - startY, GREEN); }
+          }
+        }
+        
+        // Old texture
         for (auto& tile : tiles) {
           {
             std::lock_guard<std::mutex> lock(tile.texMutex);
@@ -523,20 +571,24 @@ int main() {
       }
 
       // Draw UI
-      DrawText(TextFormat("Zoom: %.2f | %.2f", zoom, zoom / prevZoom), 10, 10, 20, WHITE);
-      DrawText(TextFormat("Iterations: %.0f", maxIterations), 10, 30, 20, WHITE);
-      DrawText(TextFormat("Generation: %.0f", (float) generation), 10, 50, 20, WHITE);
-      DrawText(TextFormat("Tiles: %.0f", (float) partsX * partsY), 10, 70, 20, WHITE);
-
+      DrawText(TextFormat("Iterations: %.0f", maxIterations), 10, 10, 20, WHITE);
+      DrawText(TextFormat("Generation: %.0f", (float) generation), 10, 30, 20, WHITE);
+      DrawText(TextFormat("Tiles: %.0f", (float) partsX * partsY), 10, 50, 20, WHITE);
+      
       DrawText(TextFormat("Threads: %.0f", (float) runningThreads.load(std::memory_order_relaxed)), SCREEN_WIDTH - 10 - MeasureText(TextFormat("Threads: %.0f", (float) runningThreads.load(std::memory_order_relaxed)), 20), 10, 20, WHITE);
       DrawText(TextFormat("Queue: %.0f", (float) pendingTiles.size()), SCREEN_WIDTH - 10 - MeasureText(TextFormat("Queue: %.0f", (float) pendingTiles.size()), 20), 30, 20, WHITE);
-    EndDrawing();
+      
+      DrawText(TextFormat("Camera X: %.15f", (float) cameraX), 10, SCREEN_HEIGHT - 70, 20, WHITE);
+      DrawText(TextFormat("Camera Y: %.15f", (float) cameraY), 10, SCREEN_HEIGHT - 50, 20, WHITE);
+      DrawText(TextFormat("Zoom: %.2f | %.2f", zoom, zoom / prevZoom), 10, SCREEN_HEIGHT - 30, 20, WHITE);
+      EndDrawing();
   }
 
   // Unload all textures from memory
   for (auto& tile : tiles) {
     UnloadRenderTexture(tile.texture);
     UnloadRenderTexture(tile.oldTexture);
+    UnloadRenderTexture(tile.veryOldTexture);
   }
 
   CloseWindow();
