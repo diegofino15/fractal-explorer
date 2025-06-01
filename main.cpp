@@ -8,7 +8,7 @@ const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
 // What set to display | 0 : Mandebrot | 1 : Julia | 2 : Burning ship | 3 : Tricorn | 4 : Phoenix
 const int SET = 0;
-const int MAX_ITERATIONS = 1000;
+const int MAX_ITERATIONS = 3000;
 
 // How many horizontal and vertical tiles to create
 const int partsX = 16;
@@ -58,28 +58,26 @@ const long double pisqrtpi = PI * sqrt(PI);
 Color getColorFromPoint_Mandelbrot(long double a, long double b, float maxIterations) {
   long double ca = a;
   long double cb = b;
+
   int n;
+  
   long double aa, bb;
-  for (n = 0; (a * a + b * b <= 16) && (n < maxIterations); n++) {
-    aa = a * a - b * b + ca;
-    bb = 2.0 * a * b + cb;
+  for (n = 0; (abs(a+b) <= 16) && (n < maxIterations); n++) {
+    aa = a*a - b*b + ca;
+    b = 2. * a * b + cb;
     a = aa;
-    b = bb;
   }
 
-  if (n >= maxIterations) return BLACK;
-
-  // --- Smooth coloring ---
-  float zn = sqrt(a * a + b * b);
-  float smooth = n + 1 - log(log(zn)) / log(2.0);
-  float t = smooth / maxIterations; // Normalized [0..1]
-
-  // --- Orange/Yellow gradient ---
-  unsigned char r = (unsigned char)(255 * t);                      // Full red
-  unsigned char g = (unsigned char)(200 * sqrt(t));                // Green increases slowly
-  unsigned char bl = (unsigned char)(30 * (1.0 - t));              // Low blue for warmth
-
-  return Color{r, g, bl, 255};
+  // Coloring
+  Color color = BLACK;
+  if (n < maxIterations) {
+    color.a = 255;
+    color.r = ((int) (n * PI)) % 255;
+    color.g = n % 255;
+    color.b = ((int) (n * pisqrtpi)) % 255;
+  }
+  
+  return color;
 }
 
 // Julia Set
@@ -332,8 +330,8 @@ void updateTilesParallel(long double cx, long double cy, long double z, int gene
   int tileCount = tiles.size();
   
   if (DETACHED_MODE) {
-    // Start new detached thread
-    for (int i = 0; i < tileCount; ++i) {
+    // Adds the tile to the queue, with all needed information to compute the pixels
+    auto scheduleTile = [cx, cy, z, generation, maxIterations](int i) {
       PendingTile pendingTile = { i, cx, cy, z, generation, maxIterations };
       
       // Remove tile from pending list if it was already scheduled (optional, but makes the app faster)
@@ -349,6 +347,11 @@ void updateTilesParallel(long double cx, long double cy, long double z, int gene
       // Add tile to the queue
       pendingTiles.push_back(pendingTile);
       tilesScheduled.insert(i);
+    };
+
+    // All all tile (from top left to bottom right of the screen)
+    for (int i = 0; i < tileCount; ++i) {
+      scheduleTile(i);
     }
   } else {
     // Do all threads at the same time
@@ -371,7 +374,7 @@ int main() {
       tile.tileX = x;
       tile.tileY = y;
       tile.texture = LoadRenderTexture(partWidth, partHeight);
-      // No need to load the oldTexture, because it's created by copying an image
+      tile.oldTexture = LoadRenderTexture(partWidth, partHeight);
     }
   }
 
@@ -447,10 +450,12 @@ int main() {
 
         // To not get visual glitches
         if (USE_OLD_TEXTURES) {
-          Image tempImage = LoadImageFromTexture(tile.texture.texture);
-          UnloadTexture(tile.oldTexture.texture);
-          tile.oldTexture.texture = LoadTextureFromImage(tempImage);
-          UnloadImage(tempImage);
+          BeginTextureMode(tile.oldTexture);
+            DrawTexturePro(tile.texture.texture,
+              { 0, (float) partHeight, (float) partWidth, (float) -partHeight },
+              { 0, 0, (float) partWidth, (float) partHeight },
+              { 0, 0 }, 0, WHITE);
+          EndTextureMode();
           tile.olda1 = tile.a1;
           tile.oldb1 = tile.b1;
           tile.olda2 = tile.a2;
