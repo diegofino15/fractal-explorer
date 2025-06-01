@@ -357,12 +357,12 @@ void updateTilesParallel(long double cx, long double cy, long double z, int gene
       tilesScheduled.insert(i);
     };
 
-    // All all tile (from top left to bottom right of the screen)
+    // Adds all tiles to the queue (from top left to bottom right of the screen)
     for (int i = 0; i < tileCount; ++i) {
       scheduleTile(i);
     }
   } else {
-    // Do all threads at the same time
+    // Compute all threads at the same time
     std::vector<std::thread> workers;
     for (int i = 0; i < tileCount; ++i) { workers.emplace_back(computeTileThread, i, cx, cy, z, generation, maxIterations);  }
     for (auto& t : workers) { t.join(); } // wait for all threads
