@@ -9,7 +9,7 @@ const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
 // What set to display | 0 : Mandebrot | 1 : Julia | 2 : Burning ship | 3 : Tricorn | 4 : Phoenix
 const int SET = 0;
-const int MAX_ITERATIONS = 1000;
+const int MAX_ITERATIONS = 3000;
 
 // How many horizontal and vertical tiles to create
 const int partsX = 16;
@@ -56,6 +56,7 @@ std::unordered_set<int> tilesScheduled;  // To avoid duplicates in queue
 
 // Mandelbrot set
 const long double pisqrtpi = PI * sqrt(PI);
+const long double pisqrt2 = PI * sqrt(2);
 Color getColorFromPoint_Mandelbrot(long double a, long double b, float maxIterations) {
   long double ca = a;
   long double cb = b;
@@ -74,8 +75,8 @@ Color getColorFromPoint_Mandelbrot(long double a, long double b, float maxIterat
   if (n < maxIterations) {
     color.a = 255;
     color.r = ((int) (n * PI)) % 255;
-    color.g = n % 255;
-    color.b = ((int) (n * pisqrtpi)) % 255;
+    color.g = ((int) (n * pisqrtpi)) % 255;
+    color.b = ((int) (n * pisqrt2)) % 255;
   }
   
   return color;
@@ -416,7 +417,7 @@ std::vector<int> getSpiralIndicesInward(int partsX, int partsY) {
 // Launch all tile updates in parallel
 std::vector<int> spiralIndicesOutward = getSpiralIndicesOutward(partsX, partsY);
 std::vector<int> spiralIndicesInward = getSpiralIndicesInward(partsX, partsY);
-void updateTilesParallel(long double cx, long double cy, long double z, int generation, float maxIterations, long double diffX, long double diffY, long double diffZoom) {
+void updateTilesParallel(long double cx, long double cy, long double z, int generation, float maxIterations, long double diffX, long double diffY) {
   int tileCount = tiles.size();
   
   if (DETACHED_MODE) {
@@ -441,14 +442,8 @@ void updateTilesParallel(long double cx, long double cy, long double z, int gene
 
     // Do a spiral pattern if simply zooming in or out
     if (diffX == 0 && diffY == 0) {
-      if (diffZoom <= 0) {    // Zooming in
-        for (const int index : spiralIndicesOutward) {
-          scheduleTile(index);
-        }
-      } else {                // Zooming out
-        for (const int index : spiralIndicesInward) {
-          scheduleTile(index);
-        }
+      for (const int index : spiralIndicesOutward) {
+        scheduleTile(index);
       }
       return;
     }
@@ -522,7 +517,7 @@ int main() {
 
   // Make it easier to call the function
   auto customUpdateTilesParallel = [&prevCamX, &prevCamY, &prevZoom, &maxIterations, &generation](long double cx, long double cy, long double z) {
-    updateTilesParallel(cameraX, cameraY, zoom, generation, maxIterations, prevCamX - cameraX, prevCamY - cameraY, prevZoom - zoom);
+    updateTilesParallel(cameraX, cameraY, zoom, generation, maxIterations, prevCamX - cameraX, prevCamY - cameraY);
     prevCamX = cameraX;
     prevCamY = cameraY;
     prevZoom = zoom;

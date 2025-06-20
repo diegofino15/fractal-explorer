@@ -56,6 +56,10 @@
     "vector": "cpp",
     "unordered_set": "cpp",
     "atomic": "cpp",
-    "thread": "cpp"
+    "thread": "cpp",
+    "__threading_support": "cpp",
+    "cstddef": "cpp",
+    "ostream": "cpp",
+    "tuple": "cpp"
   }
 }
