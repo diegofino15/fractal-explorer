@@ -63,11 +63,13 @@ CMAKE_BINARY_DIR = /Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-frac
 # Directory level rules for the build root directory
 
 # The main recursive "all" target.
-all: CMakeFiles/new-mandelbrot-fractal.dir/all
+all: CMakeFiles/videogen.dir/all
+all: CMakeFiles/fractal-viewer.dir/all
 .PHONY : all
 
 # The main recursive "codegen" target.
-codegen: CMakeFiles/new-mandelbrot-fractal.dir/codegen
+codegen: CMakeFiles/videogen.dir/codegen
+codegen: CMakeFiles/fractal-viewer.dir/codegen
 .PHONY : codegen
 
 # The main recursive "preinstall" target.
@@ -75,40 +77,73 @@ preinstall:
 .PHONY : preinstall
 
 # The main recursive "clean" target.
-clean: CMakeFiles/new-mandelbrot-fractal.dir/clean
+clean: CMakeFiles/videogen.dir/clean
+clean: CMakeFiles/fractal-viewer.dir/clean
 .PHONY : clean
 
 #=============================================================================
-# Target rules for target CMakeFiles/new-mandelbrot-fractal.dir
+# Target rules for target CMakeFiles/videogen.dir
 
 # All Build rule for target.
-CMakeFiles/new-mandelbrot-fractal.dir/all:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/new-mandelbrot-fractal.dir/build.make CMakeFiles/new-mandelbrot-fractal.dir/depend
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/new-mandelbrot-fractal.dir/build.make CMakeFiles/new-mandelbrot-fractal.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build/CMakeFiles --progress-num=1,2 "Built target new-mandelbrot-fractal"
-.PHONY : CMakeFiles/new-mandelbrot-fractal.dir/all
+CMakeFiles/videogen.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/videogen.dir/build.make CMakeFiles/videogen.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/videogen.dir/build.make CMakeFiles/videogen.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build/CMakeFiles --progress-num=3,4 "Built target videogen"
+.PHONY : CMakeFiles/videogen.dir/all
 
 # Build rule for subdir invocation for target.
-CMakeFiles/new-mandelbrot-fractal.dir/rule: cmake_check_build_system
+CMakeFiles/videogen.dir/rule: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build/CMakeFiles 2
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/new-mandelbrot-fractal.dir/all
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/videogen.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build/CMakeFiles 0
-.PHONY : CMakeFiles/new-mandelbrot-fractal.dir/rule
+.PHONY : CMakeFiles/videogen.dir/rule
 
 # Convenience name for target.
-new-mandelbrot-fractal: CMakeFiles/new-mandelbrot-fractal.dir/rule
-.PHONY : new-mandelbrot-fractal
+videogen: CMakeFiles/videogen.dir/rule
+.PHONY : videogen
 
 # codegen rule for target.
-CMakeFiles/new-mandelbrot-fractal.dir/codegen:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/new-mandelbrot-fractal.dir/build.make CMakeFiles/new-mandelbrot-fractal.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build/CMakeFiles --progress-num=1,2 "Finished codegen for target new-mandelbrot-fractal"
-.PHONY : CMakeFiles/new-mandelbrot-fractal.dir/codegen
+CMakeFiles/videogen.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/videogen.dir/build.make CMakeFiles/videogen.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build/CMakeFiles --progress-num=3,4 "Finished codegen for target videogen"
+.PHONY : CMakeFiles/videogen.dir/codegen
 
 # clean rule for target.
-CMakeFiles/new-mandelbrot-fractal.dir/clean:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/new-mandelbrot-fractal.dir/build.make CMakeFiles/new-mandelbrot-fractal.dir/clean
-.PHONY : CMakeFiles/new-mandelbrot-fractal.dir/clean
+CMakeFiles/videogen.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/videogen.dir/build.make CMakeFiles/videogen.dir/clean
+.PHONY : CMakeFiles/videogen.dir/clean
+
+#=============================================================================
+# Target rules for target CMakeFiles/fractal-viewer.dir
+
+# All Build rule for target.
+CMakeFiles/fractal-viewer.dir/all:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fractal-viewer.dir/build.make CMakeFiles/fractal-viewer.dir/depend
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fractal-viewer.dir/build.make CMakeFiles/fractal-viewer.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build/CMakeFiles --progress-num=1,2 "Built target fractal-viewer"
+.PHONY : CMakeFiles/fractal-viewer.dir/all
+
+# Build rule for subdir invocation for target.
+CMakeFiles/fractal-viewer.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build/CMakeFiles 2
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/fractal-viewer.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build/CMakeFiles 0
+.PHONY : CMakeFiles/fractal-viewer.dir/rule
+
+# Convenience name for target.
+fractal-viewer: CMakeFiles/fractal-viewer.dir/rule
+.PHONY : fractal-viewer
+
+# codegen rule for target.
+CMakeFiles/fractal-viewer.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fractal-viewer.dir/build.make CMakeFiles/fractal-viewer.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build/CMakeFiles --progress-num=1,2 "Finished codegen for target fractal-viewer"
+.PHONY : CMakeFiles/fractal-viewer.dir/codegen
+
+# clean rule for target.
+CMakeFiles/fractal-viewer.dir/clean:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fractal-viewer.dir/build.make CMakeFiles/fractal-viewer.dir/clean
+.PHONY : CMakeFiles/fractal-viewer.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

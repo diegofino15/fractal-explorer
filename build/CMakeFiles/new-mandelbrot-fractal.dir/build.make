@@ -72,28 +72,28 @@ include CMakeFiles/new-mandelbrot-fractal.dir/flags.make
 CMakeFiles/new-mandelbrot-fractal.dir/codegen:
 .PHONY : CMakeFiles/new-mandelbrot-fractal.dir/codegen
 
-CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.o: CMakeFiles/new-mandelbrot-fractal.dir/flags.make
-CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.o: /Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/main.cpp
-CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.o: CMakeFiles/new-mandelbrot-fractal.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.o -MF CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.o.d -o CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.o -c /Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/main.cpp
+CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.o: CMakeFiles/new-mandelbrot-fractal.dir/flags.make
+CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.o: /Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/videogen.cpp
+CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.o: CMakeFiles/new-mandelbrot-fractal.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.o -MF CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.o.d -o CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.o -c /Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/videogen.cpp
 
-CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/main.cpp > CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.i
+CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/videogen.cpp > CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.i
 
-CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/main.cpp -o CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.s
+CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/videogen.cpp -o CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.s
 
 # Object files for target new-mandelbrot-fractal
 new__mandelbrot__fractal_OBJECTS = \
-"CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.o"
+"CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.o"
 
 # External object files for target new-mandelbrot-fractal
 new__mandelbrot__fractal_EXTERNAL_OBJECTS =
 
-new-mandelbrot-fractal: CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.o
+new-mandelbrot-fractal: CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.o
 new-mandelbrot-fractal: CMakeFiles/new-mandelbrot-fractal.dir/build.make
 new-mandelbrot-fractal: /opt/homebrew/Cellar/raylib/5.5/lib/libraylib.dylib
 new-mandelbrot-fractal: CMakeFiles/new-mandelbrot-fractal.dir/link.txt

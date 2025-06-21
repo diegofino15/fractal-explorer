@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_DEFINES = 
 
-CXX_INCLUDES = -isystem /opt/homebrew/Cellar/raylib/5.5/include
+CXX_INCLUDES = -I/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/external -isystem /opt/homebrew/Cellar/raylib/5.5/include
 
 CXX_FLAGSarm64 = -g -std=gnu++11 -arch arm64 -I/opt/homebrew/Cellar/raylib/5.5/include
 

@@ -117,24 +117,37 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named new-mandelbrot-fractal
+# Target rules for targets named videogen
 
 # Build rule for target.
-new-mandelbrot-fractal: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 new-mandelbrot-fractal
-.PHONY : new-mandelbrot-fractal
+videogen: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 videogen
+.PHONY : videogen
 
 # fast build rule for target.
-new-mandelbrot-fractal/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/new-mandelbrot-fractal.dir/build.make CMakeFiles/new-mandelbrot-fractal.dir/build
-.PHONY : new-mandelbrot-fractal/fast
+videogen/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/videogen.dir/build.make CMakeFiles/videogen.dir/build
+.PHONY : videogen/fast
+
+#=============================================================================
+# Target rules for targets named fractal-viewer
+
+# Build rule for target.
+fractal-viewer: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 fractal-viewer
+.PHONY : fractal-viewer
+
+# fast build rule for target.
+fractal-viewer/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fractal-viewer.dir/build.make CMakeFiles/fractal-viewer.dir/build
+.PHONY : fractal-viewer/fast
 
 main.o: main.cpp.o
 .PHONY : main.o
 
 # target to build an object file
 main.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/new-mandelbrot-fractal.dir/build.make CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fractal-viewer.dir/build.make CMakeFiles/fractal-viewer.dir/main.cpp.o
 .PHONY : main.cpp.o
 
 main.i: main.cpp.i
@@ -142,7 +155,7 @@ main.i: main.cpp.i
 
 # target to preprocess a source file
 main.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/new-mandelbrot-fractal.dir/build.make CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fractal-viewer.dir/build.make CMakeFiles/fractal-viewer.dir/main.cpp.i
 .PHONY : main.cpp.i
 
 main.s: main.cpp.s
@@ -150,8 +163,32 @@ main.s: main.cpp.s
 
 # target to generate assembly for a file
 main.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/new-mandelbrot-fractal.dir/build.make CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/fractal-viewer.dir/build.make CMakeFiles/fractal-viewer.dir/main.cpp.s
 .PHONY : main.cpp.s
+
+videogen.o: videogen.cpp.o
+.PHONY : videogen.o
+
+# target to build an object file
+videogen.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/videogen.dir/build.make CMakeFiles/videogen.dir/videogen.cpp.o
+.PHONY : videogen.cpp.o
+
+videogen.i: videogen.cpp.i
+.PHONY : videogen.i
+
+# target to preprocess a source file
+videogen.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/videogen.dir/build.make CMakeFiles/videogen.dir/videogen.cpp.i
+.PHONY : videogen.cpp.i
+
+videogen.s: videogen.cpp.s
+.PHONY : videogen.s
+
+# target to generate assembly for a file
+videogen.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/videogen.dir/build.make CMakeFiles/videogen.dir/videogen.cpp.s
+.PHONY : videogen.cpp.s
 
 # Help Target
 help:
@@ -161,10 +198,14 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
-	@echo "... new-mandelbrot-fractal"
+	@echo "... fractal-viewer"
+	@echo "... videogen"
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
+	@echo "... videogen.o"
+	@echo "... videogen.i"
+	@echo "... videogen.s"
 .PHONY : help
 
 

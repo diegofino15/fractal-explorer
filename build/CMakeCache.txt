@@ -145,7 +145,7 @@ CMAKE_PROJECT_DESCRIPTION:STATIC=
 CMAKE_PROJECT_HOMEPAGE_URL:STATIC=
 
 //Value Computed by CMake
-CMAKE_PROJECT_NAME:STATIC=new-mandelbrot-fractal
+CMAKE_PROJECT_NAME:STATIC=fractal-viewer
 
 //Value Computed by CMake
 CMAKE_PROJECT_VERSION:STATIC=0.1.0
@@ -234,6 +234,15 @@ PKG_CONFIG_ARGN:STRING=
 PKG_CONFIG_EXECUTABLE:FILEPATH=/opt/homebrew/bin/pkg-config
 
 //Value Computed by CMake
+fractal-viewer_BINARY_DIR:STATIC=/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build
+
+//Value Computed by CMake
+fractal-viewer_IS_TOP_LEVEL:STATIC=ON
+
+//Value Computed by CMake
+fractal-viewer_SOURCE_DIR:STATIC=/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal
+
+//Value Computed by CMake
 new-mandelbrot-fractal_BINARY_DIR:STATIC=/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build
 
 //Value Computed by CMake
@@ -253,6 +262,15 @@ raylib_INCLUDE_DIR:PATH=/opt/homebrew/Cellar/raylib/5.5/include
 
 //Path to a library.
 raylib_LIBRARY:FILEPATH=/opt/homebrew/Cellar/raylib/5.5/lib/libraylib.dylib
+
+//Value Computed by CMake
+videogen_BINARY_DIR:STATIC=/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build
+
+//Value Computed by CMake
+videogen_IS_TOP_LEVEL:STATIC=ON
+
+//Value Computed by CMake
+videogen_SOURCE_DIR:STATIC=/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal
 
 
 ########################

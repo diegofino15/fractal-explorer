@@ -8,7 +8,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/main.cpp" "CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.o" "gcc" "CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.o.d"
+  "/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/videogen.cpp" "CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.o" "gcc" "CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.o.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

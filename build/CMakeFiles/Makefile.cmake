@@ -61,5 +61,6 @@ set(CMAKE_MAKEFILE_PRODUCTS
 
 # Dependency information for all targets:
 set(CMAKE_DEPEND_INFO_FILES
-  "CMakeFiles/new-mandelbrot-fractal.dir/DependInfo.cmake"
+  "CMakeFiles/videogen.dir/DependInfo.cmake"
+  "CMakeFiles/fractal-viewer.dir/DependInfo.cmake"
   )

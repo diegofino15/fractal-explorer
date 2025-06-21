@@ -1,13 +1,18 @@
 cmake_minimum_required(VERSION 3.10.0)
-project(new-mandelbrot-fractal VERSION 0.1.0 LANGUAGES C CXX)
+project(videogen VERSION 0.1.0 LANGUAGES C CXX)
+project(fractal-viewer VERSION 0.1.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
-# Fill with packages
-find_package(raylib CONFIG REQUIRED)
+# Actual executable
+add_executable(videogen videogen.cpp)
+add_executable(fractal-viewer main.cpp)
 
-add_executable(new-mandelbrot-fractal main.cpp)
+# Add external libraries
+target_include_directories(videogen PRIVATE external)
 
 # Link packages
-target_link_libraries(new-mandelbrot-fractal PRIVATE raylib)
+find_package(raylib CONFIG REQUIRED)
+target_link_libraries(videogen PRIVATE raylib)
+target_link_libraries(fractal-viewer PRIVATE raylib)

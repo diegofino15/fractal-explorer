@@ -1,6 +1,6 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.o"
-  "CMakeFiles/new-mandelbrot-fractal.dir/main.cpp.o.d"
+  "CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.o"
+  "CMakeFiles/new-mandelbrot-fractal.dir/videogen.cpp.o.d"
   "new-mandelbrot-fractal"
   "new-mandelbrot-fractal.pdb"
 )

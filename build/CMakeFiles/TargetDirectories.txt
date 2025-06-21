@@ -1,3 +1,4 @@
-/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build/CMakeFiles/new-mandelbrot-fractal.dir
+/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build/CMakeFiles/videogen.dir
+/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build/CMakeFiles/fractal-viewer.dir
 /Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build/CMakeFiles/edit_cache.dir
 /Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build/CMakeFiles/rebuild_cache.dir
