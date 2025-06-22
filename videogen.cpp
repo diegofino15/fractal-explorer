@@ -1,35 +1,37 @@
-#include "raylib.h"
-#include <thread>
-#include <unordered_set>
-#include <iostream>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+#include "raylib.h"
+#include <thread>
+#include <iostream>
 
 
 // Constants
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
-const int FRAMES = 500;
-// What set to display | 0 : Mandebrot | 1 : Julia | 2 : Burning ship | 3 : Tricorn | 4 : Phoenix
-const int SET = 0;
-const int MAX_ITERATIONS = 3000;
+const int FPS = 24;
+const int DURATION = 5;
+const int MAX_ITERATIONS = 1000;
+
+const long double CAMERA_X = 0.409097254276275634765625000000000000;
+const long double CAMERA_Y = -0.309928297996520996093750000000000000;
+const long double TARGET_ZOOM = 41959.535156250000000000000000000000000000;
+long double zoom = 500;
 
 // How many horizontal and vertical tiles to create
-const int partsX = 16;
-const int partsY = 9;
+const int TILES_X = 16;
+const int TILES_Y = 9;
 
-// Detaches the threads, makes the app smoother but can cause a lot of visual glitches at high iterations and big zoom
+// Detaches the threads, makes the app smoother but can cause a lot of visual glitches at high iterations and big ZOOM
 // If set to false, there are no visual glitches but the app is a lot slower at high iterations
 const bool DETACHED_MODE = true;
 const int MAX_THREADS = std::thread::hardware_concurrency();
 
-// Camera
-long double cameraX = -1.218296527862548828125000000000000000;
-long double cameraY = 0.161521255970001220703125000000000000;
-long double zoom = 500;
-const float zoomSpeed = 1.0f;
-const int partWidth = SCREEN_WIDTH / partsX;
-const int partHeight = SCREEN_HEIGHT / partsY;
+// Other
+const int tileWidth = SCREEN_WIDTH / TILES_X;
+const int tileHeight = SCREEN_HEIGHT / TILES_Y;
+const int tileCount = TILES_X * TILES_Y;
+const int frameCount = FPS * DURATION; // 20 seconds of video
+const long double zoomStep = powl(TARGET_ZOOM / zoom, 1.0L / frameCount);
 
 // DEFINITION OF THE SETS //
 
@@ -100,21 +102,23 @@ struct Frame {
 };
 
 // List of all the frames
-std::vector<Frame> frames(FRAMES);
+std::vector<Frame> frames(frameCount);
 
 // Save a frame
 void saveFrameAsPNG(Frame& frame) {
   std::vector<unsigned char> data(SCREEN_WIDTH * SCREEN_HEIGHT * 3); // RGB only
   
   // Loop trough each tile, and copy pixels
-  for (int i = 0; i < partsX * partsY; i++) {
+  int temp;
+  for (int i = 0; i < TILES_X * TILES_Y; i++) {
     Tile& tile = frame.tiles[i];
-    for (int y = 0; y < partHeight; y++) {
-      for (int x = 0; x < partWidth; x++) {
-        int index = y * partWidth + x;
-        data[(y + tile.tileY * partHeight) * SCREEN_WIDTH * 3 + (x + tile.tileX * partWidth) * 3 + 0] = tile.pixels[index].r;
-        data[(y + tile.tileY * partHeight) * SCREEN_WIDTH * 3 + (x + tile.tileX * partWidth) * 3 + 1] = tile.pixels[index].g;
-        data[(y + tile.tileY * partHeight) * SCREEN_WIDTH * 3 + (x + tile.tileX * partWidth) * 3 + 2] = tile.pixels[index].b;
+    for (int y = 0; y < tileHeight; y++) {
+      for (int x = 0; x < tileWidth; x++) {
+        int index = y * tileWidth + x;
+        temp = (y + tile.tileY * tileHeight) * SCREEN_WIDTH * 3 + (x + tile.tileX * tileWidth) * 3;
+        data[temp + 0] = tile.pixels[index].r;
+        data[temp + 1] = tile.pixels[index].g;
+        data[temp + 2] = tile.pixels[index].b;
       }
     }
   }
@@ -131,13 +135,13 @@ void computeTileThread(Tile& tile, long double cx, long double cy, long double z
   runningThreads.fetch_add(1, std::memory_order_relaxed);
 
   // Compute the pixels
-  std::vector<Color> pixels = std::vector<Color>(partWidth * partHeight);
-  for (int y = 0; y < partHeight; y++) {
-    for (int x = 0; x < partWidth; x++) {
-      long double posx = (x + tile.tileX * partWidth - SCREEN_WIDTH / 2.0) / z + cx;
-      long double posy = (y + tile.tileY * partHeight - SCREEN_HEIGHT / 2.0) / z + cy;
+  std::vector<Color> pixels = std::vector<Color>(tileWidth * tileHeight);
+  for (int y = 0; y < tileHeight; y++) {
+    for (int x = 0; x < tileWidth; x++) {
+      long double posx = (x + tile.tileX * tileWidth - SCREEN_WIDTH / 2.0) / z + cx;
+      long double posy = (y + tile.tileY * tileHeight - SCREEN_HEIGHT / 2.0) / z + cy;
       
-      pixels[y * partWidth + x] = getColorFromPoint_Mandelbrot(posx, posy, maxIterations);
+      pixels[y * tileWidth + x] = getColorFromPoint_Mandelbrot(posx, posy, maxIterations);
     }
   }
 
@@ -148,6 +152,10 @@ void computeTileThread(Tile& tile, long double cx, long double cy, long double z
   {
     std::lock_guard<std::mutex> lock(frames[generation].frameMutex);
     frames[generation].tilesComputed++;
+    if (frames[generation].tilesComputed == TILES_X * TILES_Y) {
+      saveFrameAsPNG(frames[generation]);
+      frames[generation].tilesComputed = 0;
+    }
   }
 
   // Remove one from the thread counter
@@ -156,8 +164,6 @@ void computeTileThread(Tile& tile, long double cx, long double cy, long double z
 
 // Launch all tile updates in parallel
 void scheduleFrame(long double cx, long double cy, long double z, int generation, float maxIterations) {
-  int tileCount = partsX * partsY;
-  
   if (DETACHED_MODE) {
     // Adds the tile to the queue, with all needed information to compute the pixels
     auto scheduleTile = [cx, cy, z, generation, maxIterations](int i) {
@@ -184,43 +190,31 @@ void scheduleFrame(long double cx, long double cy, long double z, int generation
 // Main function
 int main() {
   // Init the frames and tiles
-  for (int i = 0; i < FRAMES; i++) {
+  for (int i = 0; i < frameCount; i++) {
     Frame& frame = frames[i];
     frame.generation = i;
-    frame.tiles.resize(partsX * partsY);
+    frame.tiles.resize(TILES_X * TILES_Y);
     
-    for (int y = 0; y < partsY; y++) {
-      for (int x = 0; x < partsX; x++) {
-        Tile& tile = frame.tiles[y * partsX + x];
+    for (int y = 0; y < TILES_Y; y++) {
+      for (int x = 0; x < TILES_X; x++) {
+        Tile& tile = frame.tiles[y * TILES_X + x];
         tile.tileX = x;
         tile.tileY = y;
         tile.generation = i;
-        tile.pixels.resize(partWidth * partHeight);
+        tile.pixels.resize(tileWidth * tileHeight);
       }
     }
   }
 
-  // Slowly zoom into the camera position, and schedule the frames
-  for (int i = 0; i < FRAMES; i++) {
-    scheduleFrame(cameraX, cameraY, zoom, i, MAX_ITERATIONS);
-    zoom += zoomSpeed * zoom / 60;
+  // Slowly ZOOM into the camera position, and schedule the frames
+  for (int i = 0; i < frameCount; i++) {
+    scheduleFrame(CAMERA_X, CAMERA_Y, zoom, i, MAX_ITERATIONS);
+    zoom *= zoomStep;
   }
 
 
   // Do the threads
-  const int tileCount = partsX * partsY;
-  int frameCount = 0;
-  while (!pendingTiles.empty() || runningThreads.load(std::memory_order_relaxed) > 0 || frameCount < FRAMES) {
-    // Check if some frames are completely rendered
-    for (int i = 0; i < FRAMES; i++) {
-      Frame& frame = frames[i];
-      if (frame.tilesComputed == tileCount) {
-        saveFrameAsPNG(frame);
-        frame.tilesComputed = 0;
-        frameCount++;
-      }
-    }
-    
+  while (!pendingTiles.empty() || runningThreads.load(std::memory_order_relaxed) > 0) {
     // Add the maximum of threads possible
     while (runningThreads.load(std::memory_order_relaxed) < MAX_THREADS && !pendingTiles.empty()) {
       PendingTile next = pendingTiles.front();
@@ -231,5 +225,6 @@ int main() {
     }
   }
 
+  std::cout << "Done" << std::endl;
   return 0;
 }

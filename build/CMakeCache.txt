@@ -242,15 +242,6 @@ fractal-viewer_IS_TOP_LEVEL:STATIC=ON
 //Value Computed by CMake
 fractal-viewer_SOURCE_DIR:STATIC=/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal
 
-//Value Computed by CMake
-new-mandelbrot-fractal_BINARY_DIR:STATIC=/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal/build
-
-//Value Computed by CMake
-new-mandelbrot-fractal_IS_TOP_LEVEL:STATIC=ON
-
-//Value Computed by CMake
-new-mandelbrot-fractal_SOURCE_DIR:STATIC=/Users/diegofinocchiaro/Documents/dev/c++/new-mandelbrot-fractal
-
 //Path to a library.
 pkgcfg_lib_PC_RAYLIB_raylib:FILEPATH=/opt/homebrew/Cellar/raylib/5.5/lib/libraylib.dylib
 

@@ -37,8 +37,8 @@ long double cameraY = 0;
 const float cameraSpeed = 500.0f;
 long double zoom = 500;
 const float zoomSpeed = 1.0f;
-const int partWidth = SCREEN_WIDTH / partsX;
-const int partHeight = SCREEN_HEIGHT / partsY;
+const int tileWidth = SCREEN_WIDTH / partsX;
+const int tileHeight = SCREEN_HEIGHT / partsY;
 
 // Multi-threading
 std::atomic<int> runningThreads(0);
@@ -302,18 +302,18 @@ void computeTileThread(int tileIndex, long double cx, long double cy, long doubl
   }
 
   // Compute the pixels
-  Color* pixels = new Color[partWidth * partHeight];
-  for (int y = 0; y < partHeight; y++) {
-    for (int x = 0; x < partWidth; x++) {
-      long double posx = (x + tile.tileX * partWidth - SCREEN_WIDTH / 2.0) / z + cx;
-      long double posy = (y + tile.tileY * partHeight - SCREEN_HEIGHT / 2.0) / z + cy;
+  Color* pixels = new Color[tileWidth * tileHeight];
+  for (int y = 0; y < tileHeight; y++) {
+    for (int x = 0; x < tileWidth; x++) {
+      long double posx = (x + tile.tileX * tileWidth - SCREEN_WIDTH / 2.0) / z + cx;
+      long double posy = (y + tile.tileY * tileHeight - SCREEN_HEIGHT / 2.0) / z + cy;
       
-      if (SET == 0) { pixels[y * partWidth + x] = getColorFromPoint_Mandelbrot(posx, posy, maxIterations); }
-      else if (SET == 1) { pixels[y * partWidth + x] = getColorFromPoint_Julia(posx, posy, maxIterations); }
-      else if (SET == 2) { pixels[y * partWidth + x] = getColorFromPoint_BurningShip(posx, posy, maxIterations); }
-      else if (SET == 3) { pixels[y * partWidth + x] = getColorFromPoint_Tricorn(posx, posy, maxIterations); }
-      else if (SET == 4) { pixels[y * partWidth + x] = getColorFromPoint_Phoenix(posx, posy, maxIterations); }
-      else if (SET == 5) { pixels[y * partWidth + x] = getColorFromPoint_Lyapunov(posx, posy, maxIterations); }
+      if (SET == 0) { pixels[y * tileWidth + x] = getColorFromPoint_Mandelbrot(posx, posy, maxIterations); }
+      else if (SET == 1) { pixels[y * tileWidth + x] = getColorFromPoint_Julia(posx, posy, maxIterations); }
+      else if (SET == 2) { pixels[y * tileWidth + x] = getColorFromPoint_BurningShip(posx, posy, maxIterations); }
+      else if (SET == 3) { pixels[y * tileWidth + x] = getColorFromPoint_Tricorn(posx, posy, maxIterations); }
+      else if (SET == 4) { pixels[y * tileWidth + x] = getColorFromPoint_Phoenix(posx, posy, maxIterations); }
+      else if (SET == 5) { pixels[y * tileWidth + x] = getColorFromPoint_Lyapunov(posx, posy, maxIterations); }
     }
   }
   
@@ -502,9 +502,9 @@ int main() {
       Tile& tile = tiles[y * partsX + x];
       tile.tileX = x;
       tile.tileY = y;
-      tile.texture = LoadRenderTexture(partWidth, partHeight);
-      tile.oldTexture = LoadRenderTexture(partWidth, partHeight);
-      tile.veryOldTexture = LoadRenderTexture(partWidth, partHeight);
+      tile.texture = LoadRenderTexture(tileWidth, tileHeight);
+      tile.oldTexture = LoadRenderTexture(tileWidth, tileHeight);
+      tile.veryOldTexture = LoadRenderTexture(tileWidth, tileHeight);
     }
   }
 
@@ -587,8 +587,8 @@ int main() {
           // Draw oldTexture on veryOldTexture
           BeginTextureMode(tile.veryOldTexture);
             DrawTexturePro(tile.oldTexture.texture,
-              { 0, (float) partHeight, (float) partWidth, (float) -partHeight },
-              { 0, 0, (float) partWidth, (float) partHeight },
+              { 0, (float) tileHeight, (float) tileWidth, (float) -tileHeight },
+              { 0, 0, (float) tileWidth, (float) tileHeight },
               { 0, 0 }, 0, WHITE);
           EndTextureMode();
           tile.veryolda1 = tile.olda1;
@@ -599,8 +599,8 @@ int main() {
           // Draw texture on oldTexture
           BeginTextureMode(tile.oldTexture);
             DrawTexturePro(tile.texture.texture,
-              { 0, (float) partHeight, (float) partWidth, (float) -partHeight },
-              { 0, 0, (float) partWidth, (float) partHeight },
+              { 0, (float) tileHeight, (float) tileWidth, (float) -tileHeight },
+              { 0, 0, (float) tileWidth, (float) tileHeight },
               { 0, 0 }, 0, WHITE);
           EndTextureMode();
           tile.olda1 = tile.a1;
@@ -611,10 +611,10 @@ int main() {
         
         // Save the old camera position from when it was computed
         UpdateTexture(tile.texture.texture, tile.pixels);
-        tile.a1 = (tile.tileX * partWidth - SCREEN_WIDTH / 2.0) / tile.z + tile.cx;
-        tile.b1 = (tile.tileY * partHeight - SCREEN_HEIGHT / 2.0) / tile.z + tile.cy;
-        tile.a2 = ((tile.tileX + 1) * partWidth - SCREEN_WIDTH / 2.0) / tile.z + tile.cx;
-        tile.b2 = ((tile.tileY + 1) * partHeight - SCREEN_HEIGHT / 2.0) / tile.z + tile.cy;
+        tile.a1 = (tile.tileX * tileWidth - SCREEN_WIDTH / 2.0) / tile.z + tile.cx;
+        tile.b1 = (tile.tileY * tileHeight - SCREEN_HEIGHT / 2.0) / tile.z + tile.cy;
+        tile.a2 = ((tile.tileX + 1) * tileWidth - SCREEN_WIDTH / 2.0) / tile.z + tile.cx;
+        tile.b2 = ((tile.tileY + 1) * tileHeight - SCREEN_HEIGHT / 2.0) / tile.z + tile.cy;
 
         delete[] tile.pixels;
         tile.hasComputed = false;
@@ -639,7 +639,7 @@ int main() {
             float endY = (tile.veryoldb2 - cameraY) * zoom + SCREEN_HEIGHT / 2.0;
             
             DrawTexturePro(tile.veryOldTexture.texture,
-              { 0, 0, (float) partWidth, (float) partHeight },
+              { 0, 0, (float) tileWidth, (float) tileHeight },
               { startX, startY, endX - startX, endY - startY },
               { 0, 0 }, 0, WHITE);
             
@@ -660,7 +660,7 @@ int main() {
             float endY = (tile.oldb2 - cameraY) * zoom + SCREEN_HEIGHT / 2.0;
             
             DrawTexturePro(tile.oldTexture.texture,
-              { 0, 0, (float) partWidth, (float) partHeight },
+              { 0, 0, (float) tileWidth, (float) tileHeight },
               { startX, startY, endX - startX, endY - startY },
               { 0, 0 }, 0, WHITE);
             
@@ -682,7 +682,7 @@ int main() {
           float endY = (tile.b2 - cameraY) * zoom + SCREEN_HEIGHT / 2.0;
           
           DrawTexturePro(tile.texture.texture,
-            { 0, 0, (float) partWidth, (float) partHeight },
+            { 0, 0, (float) tileWidth, (float) tileHeight },
             { startX, startY, endX - startX, endY - startY },
             { 0, 0 }, 0, WHITE);
           
@@ -711,6 +711,12 @@ int main() {
     UnloadRenderTexture(tile.oldTexture);
     UnloadRenderTexture(tile.veryOldTexture);
   }
+
+  // To then copy and paste if needed
+  std::cout << "Final view :" << std::endl;
+  std::cout << TextFormat("Zoom: %.36f", (float) zoom) << std::endl;
+  std::cout << TextFormat("Camera X: %.36f", (float) cameraX) << std::endl;
+  std::cout << TextFormat("Camera Y: %.36f", (float) cameraY) << std::endl;
 
   CloseWindow();
   return 0;
