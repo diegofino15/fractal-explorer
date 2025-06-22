@@ -8,10 +8,11 @@
 // Constants
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
+const int MAX_ITERATIONS = 100;
 const int FPS = 24;
-const int DURATION = 5;
-const int MAX_ITERATIONS = 1000;
+const int DURATION = 5; // In seconds
 
+// What to capture
 const long double CAMERA_X = 0.409097254276275634765625000000000000;
 const long double CAMERA_Y = -0.309928297996520996093750000000000000;
 const long double TARGET_ZOOM = 41959.535156250000000000000000000000000000;
@@ -21,15 +22,15 @@ long double zoom = 500;
 const int TILES_X = 16;
 const int TILES_Y = 9;
 
-// Detaches the threads, makes the app smoother but can cause a lot of visual glitches at high iterations and big ZOOM
-// If set to false, there are no visual glitches but the app is a lot slower at high iterations
-const bool DETACHED_MODE = true;
+// Detaches the threads, can speedup the rendering but uses more resources
+const bool DETACHED_MODE = false;
 const int MAX_THREADS = std::thread::hardware_concurrency();
 
 // Other
+const int tileCount = TILES_X * TILES_Y;
 const int tileWidth = SCREEN_WIDTH / TILES_X;
 const int tileHeight = SCREEN_HEIGHT / TILES_Y;
-const int tileCount = TILES_X * TILES_Y;
+const int pixelCount = tileWidth * tileHeight;
 const int frameCount = FPS * DURATION; // 20 seconds of video
 const long double zoomStep = powl(TARGET_ZOOM / zoom, 1.0L / frameCount);
 
@@ -110,7 +111,7 @@ void saveFrameAsPNG(Frame& frame) {
   
   // Loop trough each tile, and copy pixels
   int temp;
-  for (int i = 0; i < TILES_X * TILES_Y; i++) {
+  for (int i = 0; i < tileCount; i++) {
     Tile& tile = frame.tiles[i];
     for (int y = 0; y < tileHeight; y++) {
       for (int x = 0; x < tileWidth; x++) {
@@ -135,7 +136,7 @@ void computeTileThread(Tile& tile, long double cx, long double cy, long double z
   runningThreads.fetch_add(1, std::memory_order_relaxed);
 
   // Compute the pixels
-  std::vector<Color> pixels = std::vector<Color>(tileWidth * tileHeight);
+  std::vector<Color> pixels = std::vector<Color>(pixelCount);
   for (int y = 0; y < tileHeight; y++) {
     for (int x = 0; x < tileWidth; x++) {
       long double posx = (x + tile.tileX * tileWidth - SCREEN_WIDTH / 2.0) / z + cx;
@@ -152,7 +153,7 @@ void computeTileThread(Tile& tile, long double cx, long double cy, long double z
   {
     std::lock_guard<std::mutex> lock(frames[generation].frameMutex);
     frames[generation].tilesComputed++;
-    if (frames[generation].tilesComputed == TILES_X * TILES_Y) {
+    if (frames[generation].tilesComputed == tileCount) {
       saveFrameAsPNG(frames[generation]);
       frames[generation].tilesComputed = 0;
     }
@@ -193,7 +194,7 @@ int main() {
   for (int i = 0; i < frameCount; i++) {
     Frame& frame = frames[i];
     frame.generation = i;
-    frame.tiles.resize(TILES_X * TILES_Y);
+    frame.tiles.resize(tileCount);
     
     for (int y = 0; y < TILES_Y; y++) {
       for (int x = 0; x < TILES_X; x++) {
@@ -201,7 +202,7 @@ int main() {
         tile.tileX = x;
         tile.tileY = y;
         tile.generation = i;
-        tile.pixels.resize(tileWidth * tileHeight);
+        tile.pixels.resize(pixelCount);
       }
     }
   }
