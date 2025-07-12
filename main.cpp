@@ -73,6 +73,7 @@ Color getColorFromPoint_Mandelbrot(long double a, long double b, float maxIterat
   // Coloring
   Color color = BLACK;
   if (n < maxIterations) {
+    // color = GetMandelbrotColor(n, (int) maxIterations);
     color.a = 255;
     color.r = ((int) (n * PI)) % 255;
     color.g = ((int) (n * pisqrtpi)) % 255;
@@ -336,87 +337,46 @@ void computeTileThread(int tileIndex, long double cx, long double cy, long doubl
 
 // Do a spiral
 std::vector<int> getSpiralIndicesOutward(int partsX, int partsY) {
-    std::vector<int> result;
-    std::vector<std::vector<bool>> visited(partsY, std::vector<bool>(partsX, false));
-    
-    // Starting position (center)
-    int startX = partsX / 2;
-    int startY = partsY / 2;
-    
-    // Direction vectors: right, down, left, up
-    int dx[] = {1, 0, -1, 0};
-    int dy[] = {0, 1, 0, -1};
-    int direction = 0;
-    
-    int x = startX, y = startY;
-    int steps = 1;
-    
-    // Add center point
-    result.push_back(x + y * partsX);
-    visited[y][x] = true;
-    
-    while (result.size() < partsX * partsY) {
-        for (int i = 0; i < 2; i++) { // Move in current direction twice per spiral layer
-            for (int step = 0; step < steps; step++) {
-                x += dx[direction];
-                y += dy[direction];
-                
-                if (x >= 0 && x < partsX && y >= 0 && y < partsY && !visited[y][x]) {
-                    result.push_back(x + y * partsX);
-                    visited[y][x] = true;
-                }
-            }
-            direction = (direction + 1) % 4; // Turn 90 degrees
+  std::vector<int> result;
+  std::vector<std::vector<bool>> visited(partsY, std::vector<bool>(partsX, false));
+  
+  // Starting position (center)
+  int startX = partsX / 2;
+  int startY = partsY / 2;
+  
+  // Direction vectors: right, down, left, up
+  int dx[] = {1, 0, -1, 0};
+  int dy[] = {0, 1, 0, -1};
+  int direction = 0;
+  
+  int x = startX, y = startY;
+  int steps = 1;
+  
+  // Add center point
+  result.push_back(x + y * partsX);
+  visited[y][x] = true;
+  
+  while (result.size() < partsX * partsY) {
+    for (int i = 0; i < 2; i++) { // Move in current direction twice per spiral layer
+      for (int step = 0; step < steps; step++) {
+        x += dx[direction];
+        y += dy[direction];
+        
+        if (x >= 0 && x < partsX && y >= 0 && y < partsY && !visited[y][x]) {
+          result.push_back(x + y * partsX);
+          visited[y][x] = true;
         }
-        steps++; // Increase step count for next spiral layer
+      }
+      direction = (direction + 1) % 4; // Turn 90 degrees
     }
-    
-    return result;
-}
-
-// Spiral from outside
-std::vector<int> getSpiralIndicesInward(int partsX, int partsY) {
-    std::vector<int> result;
-    
-    int top = 0, bottom = partsY - 1;
-    int left = 0, right = partsX - 1;
-    
-    while (top <= bottom && left <= right) {
-        // Move right along top row
-        for (int x = left; x <= right; x++) {
-            result.push_back(x + top * partsX);
-        }
-        top++;
-        
-        // Move down along right column
-        for (int y = top; y <= bottom; y++) {
-            result.push_back(right + y * partsX);
-        }
-        right--;
-        
-        // Move left along bottom row (if there's still a row)
-        if (top <= bottom) {
-            for (int x = right; x >= left; x--) {
-                result.push_back(x + bottom * partsX);
-            }
-            bottom--;
-        }
-        
-        // Move up along left column (if there's still a column)
-        if (left <= right) {
-            for (int y = bottom; y >= top; y--) {
-                result.push_back(left + y * partsX);
-            }
-            left++;
-        }
-    }
-    
-    return result;
+    steps++; // Increase step count for next spiral layer
+  }
+  
+  return result;
 }
 
 // Launch all tile updates in parallel
 std::vector<int> spiralIndicesOutward = getSpiralIndicesOutward(partsX, partsY);
-std::vector<int> spiralIndicesInward = getSpiralIndicesInward(partsX, partsY);
 void updateTilesParallel(long double cx, long double cy, long double z, int generation, float maxIterations, long double diffX, long double diffY) {
   int tileCount = tiles.size();
   
@@ -702,7 +662,7 @@ int main() {
       DrawText(TextFormat("Camera X: %.15f", (float) cameraX), 10, SCREEN_HEIGHT - 70, 20, WHITE);
       DrawText(TextFormat("Camera Y: %.15f", (float) cameraY), 10, SCREEN_HEIGHT - 50, 20, WHITE);
       DrawText(TextFormat("Zoom: %.2f | %.2f", zoom, zoom / prevZoom), 10, SCREEN_HEIGHT - 30, 20, WHITE);
-      EndDrawing();
+    EndDrawing();
   }
 
   // Unload all textures from memory

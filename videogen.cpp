@@ -8,14 +8,14 @@
 // Constants
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
-const int MAX_ITERATIONS = 100;
+const int MAX_ITERATIONS = 3000;
 const int FPS = 24;
-const int DURATION = 5; // In seconds
+const int DURATION = 1; // In seconds
 
 // What to capture
-const long double CAMERA_X = 0.409097254276275634765625000000000000;
-const long double CAMERA_Y = -0.309928297996520996093750000000000000;
-const long double TARGET_ZOOM = 41959.535156250000000000000000000000000000;
+const long double CAMERA_X = -0.664821267127990722656250000000000000L;
+const long double CAMERA_Y = 0.352637708187103271484375000000000000L;
+const long double TARGET_ZOOM = 71022936416321536.000000000000000000000000000000000000L;
 long double zoom = 500;
 
 // How many horizontal and vertical tiles to create
@@ -23,7 +23,7 @@ const int TILES_X = 16;
 const int TILES_Y = 9;
 
 // Detaches the threads, can speedup the rendering but uses more resources
-const bool DETACHED_MODE = false;
+const bool DETACHED_MODE = true;
 const int MAX_THREADS = std::thread::hardware_concurrency();
 
 // Other
