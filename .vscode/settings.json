@@ -61,5 +61,6 @@
     "cstddef": "cpp",
     "ostream": "cpp",
     "tuple": "cpp"
-  }
+  },
+  "cmake.ignoreCMakeListsMissing": true
 }
