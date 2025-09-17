@@ -43,8 +43,7 @@ int tileHeight = SCREEN_HEIGHT / partsY;
 
 // Multi-threading
 std::atomic<int> runningThreads(0);
-struct PendingTile
-{
+struct PendingTile {
   int index;
   long double cx, cy, z;
   int generation;
@@ -58,16 +57,14 @@ std::unordered_set<int> tilesScheduled; // To avoid duplicates in queue
 // Mandelbrot set
 const long double pisqrtpi = PI * sqrt(PI);
 const long double pisqrt2 = PI * sqrt(2);
-Color getColorFromPoint_Mandelbrot(long double a, long double b, float maxIterations)
-{
+Color getColorFromPoint_Mandelbrot(long double a, long double b, float maxIterations) {
   long double ca = a;
   long double cb = b;
 
   int n;
 
   long double aa, bb;
-  for (n = 0; (abs(a + b) <= 16) && (n < maxIterations); n++)
-  {
+  for (n = 0; (abs(a + b) <= 16) && (n < maxIterations); n++) {
     aa = a * a - b * b + ca;
     b = 2. * a * b + cb;
     a = aa;
@@ -75,9 +72,7 @@ Color getColorFromPoint_Mandelbrot(long double a, long double b, float maxIterat
 
   // Coloring
   Color color = BLACK;
-  if (n < maxIterations)
-  {
-    // color = GetMandelbrotColor(n, (int) maxIterations);
+  if (n < maxIterations) {
     color.a = 255;
     color.r = ((int)(n * PI)) % 255;
     color.g = ((int)(n * pisqrtpi)) % 255;
@@ -90,8 +85,7 @@ Color getColorFromPoint_Mandelbrot(long double a, long double b, float maxIterat
 // Julia Set
 const long double julia_ca = -0.7;    // Real part of c
 const long double julia_cb = 0.27015; // Imaginary part of c
-Color HSVtoRGB(float h, float s, float v)
-{
+Color HSVtoRGB(float h, float s, float v) {
   float r, g, b;
 
   int i = int(h * 6);

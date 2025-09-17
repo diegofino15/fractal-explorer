@@ -6,11 +6,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
 # Actual executable
-add_executable(videogen videogen.cpp)
-add_executable(fractal-viewer main.cpp)
+add_executable(videogen src/videogen.cpp)
+add_executable(fractal-viewer src/main.cpp)
 
 # Add external libraries
-target_include_directories(videogen PRIVATE external)
+target_include_directories(videogen PRIVATE include/external)
 
 # Link packages
 find_package(raylib CONFIG REQUIRED)
