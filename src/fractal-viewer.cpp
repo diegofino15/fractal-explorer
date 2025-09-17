@@ -58,8 +58,7 @@ std::unordered_set<int> tilesScheduled; // To avoid duplicates in queue
 // CODE //
 
 // Tile structure
-struct Tile
-{
+struct Tile {
   // Lock used to modify the tile in different threads
   std::mutex texMutex;
 
@@ -85,8 +84,7 @@ struct Tile
 std::vector<Tile> tiles(partsX *partsY);
 
 // Compute a tile in the background
-void computeTileThread(int tileIndex, long double cx, long double cy, long double z, int generation, float maxIterations)
-{
+void computeTileThread(int tileIndex, long double cx, long double cy, long double z, int generation, float maxIterations) {
   // Add one to the thread counter
   runningThreads.fetch_add(1, std::memory_order_relaxed);
 
@@ -96,18 +94,15 @@ void computeTileThread(int tileIndex, long double cx, long double cy, long doubl
   // Update generation count
   {
     std::lock_guard<std::mutex> lock(tile.texMutex);
-    if (tile.generation <= generation)
-    {
+    if (tile.generation <= generation) {
       tile.generation = generation;
     }
   }
 
   // Compute the pixels
   Color *pixels = new Color[tileWidth * tileHeight];
-  for (int y = 0; y < tileHeight; y++)
-  {
-    for (int x = 0; x < tileWidth; x++)
-    {
+  for (int y = 0; y < tileHeight; y++) {
+    for (int x = 0; x < tileWidth; x++) {
       long double posx = (x + tile.tileX * tileWidth - SCREEN_WIDTH / 2.0) / z + cx;
       long double posy = (y + tile.tileY * tileHeight - SCREEN_HEIGHT / 2.0) / z + cy;
 
@@ -130,8 +125,7 @@ void computeTileThread(int tileIndex, long double cx, long double cy, long doubl
   // Lock tile to save computed pixels
   {
     std::lock_guard<std::mutex> lock(tile.texMutex);
-    if (tile.generation <= generation)
-    {
+    if (tile.generation <= generation) {
       tile.generation = generation;
       tile.pixels = pixels;
       tile.hasComputed = true;
@@ -146,8 +140,7 @@ void computeTileThread(int tileIndex, long double cx, long double cy, long doubl
 }
 
 // Do a spiral
-std::vector<int> getSpiralIndicesOutward(int partsX, int partsY)
-{
+std::vector<int> getSpiralIndicesOutward(int partsX, int partsY) {
   std::vector<int> result;
   std::vector<std::vector<bool>> visited(partsY, std::vector<bool>(partsX, false));
 
@@ -167,17 +160,13 @@ std::vector<int> getSpiralIndicesOutward(int partsX, int partsY)
   result.push_back(x + y * partsX);
   visited[y][x] = true;
 
-  while (result.size() < partsX * partsY)
-  {
-    for (int i = 0; i < 2; i++)
-    { // Move in current direction twice per spiral layer
-      for (int step = 0; step < steps; step++)
-      {
+  while (result.size() < partsX * partsY) {
+    for (int i = 0; i < 2; i++) { // Move in current direction twice per spiral layer
+      for (int step = 0; step < steps; step++) {
         x += dx[direction];
         y += dy[direction];
 
-        if (x >= 0 && x < partsX && y >= 0 && y < partsY && !visited[y][x])
-        {
+        if (x >= 0 && x < partsX && y >= 0 && y < partsY && !visited[y][x]) {
           result.push_back(x + y * partsX);
           visited[y][x] = true;
         }
@@ -192,24 +181,18 @@ std::vector<int> getSpiralIndicesOutward(int partsX, int partsY)
 
 // Launch all tile updates in parallel
 std::vector<int> spiralIndicesOutward = getSpiralIndicesOutward(partsX, partsY);
-void updateTilesParallel(long double cx, long double cy, long double z, int generation, float maxIterations, long double diffX, long double diffY)
-{
+void updateTilesParallel(long double cx, long double cy, long double z, int generation, float maxIterations, long double diffX, long double diffY) {
   int tileCount = tiles.size();
 
-  if (DETACHED_MODE)
-  {
+  if (DETACHED_MODE) {
     // Adds the tile to the queue, with all needed information to compute the pixels
-    auto scheduleTile = [cx, cy, z, generation, maxIterations](int i)
-    {
+    auto scheduleTile = [cx, cy, z, generation, maxIterations] (int i) {
       PendingTile pendingTile = {i, cx, cy, z, generation, maxIterations};
 
       // Remove tile from pending list if it was already scheduled (optional, but makes the app faster)
-      if (AVOID_DUPLICATES && tilesScheduled.find(i) != tilesScheduled.end())
-      {
-        for (auto it = pendingTiles.begin(); it != pendingTiles.end(); ++it)
-        {
-          if (it->index == i)
-          {
+      if (AVOID_DUPLICATES && tilesScheduled.find(i) != tilesScheduled.end()) {
+        for (auto it = pendingTiles.begin(); it != pendingTiles.end(); ++it) {
+          if (it->index == i) {
             pendingTiles.erase(it);
             break;
           }
@@ -222,87 +205,66 @@ void updateTilesParallel(long double cx, long double cy, long double z, int gene
     };
 
     // Do a spiral pattern if simply zooming in or out
-    if (diffX == 0 && diffY == 0)
-    {
-      for (const int index : spiralIndicesOutward)
-      {
+    if (diffX == 0 && diffY == 0) {
+      for (const int index : spiralIndicesOutward) {
         scheduleTile(index);
       }
       return;
     }
 
     // Change the order of the tiles based on movement direction
-    if (diffX >= 0)
-    {
-      if (diffY >= 0)
-      {
+    if (diffX >= 0) {
+      if (diffY >= 0) {
         // Top left
-        for (int i = 0; i < partsX; ++i)
-        {
-          for (int j = 0; j < partsY; ++j)
-          {
+        for (int i = 0; i < partsX; ++i) {
+          for (int j = 0; j < partsY; ++j) {
             scheduleTile(j * partsX + i);
           }
         }
       }
-      else
-      {
+      else {
         // Bottom left
-        for (int i = 0; i < partsX; ++i)
-        {
-          for (int j = partsY - 1; j >= 0; --j)
-          {
+        for (int i = 0; i < partsX; ++i) {
+          for (int j = partsY - 1; j >= 0; --j) {
             scheduleTile(j * partsX + i);
           }
         }
       }
     }
-    else
-    {
-      if (diffY >= 0)
-      {
+    else {
+      if (diffY >= 0) {
         // Top right
-        for (int i = partsX - 1; i >= 0; --i)
-        {
-          for (int j = 0; j < partsY; ++j)
-          {
+        for (int i = partsX - 1; i >= 0; --i) {
+          for (int j = 0; j < partsY; ++j) {
             scheduleTile(j * partsX + i);
           }
         }
       }
-      else
-      {
+      else {
         // Bottom right
-        for (int i = partsX - 1; i >= 0; --i)
-        {
-          for (int j = partsY - 1; j >= 0; --j)
-          {
+        for (int i = partsX - 1; i >= 0; --i) {
+          for (int j = partsY - 1; j >= 0; --j) {
             scheduleTile(j * partsX + i);
           }
         }
       }
     }
   }
-  else
-  {
+  else {
     // Compute all threads at the same time
     std::vector<std::thread> workers;
-    for (int i = 0; i < tileCount; ++i)
-    {
+    for (int i = 0; i < tileCount; ++i) {
       workers.emplace_back(computeTileThread, i, cx, cy, z, generation, maxIterations);
     }
-    for (auto &t : workers)
-    {
+    for (auto &t : workers) {
       t.join(); // waits for all threads
     }
   }
 }
 
 // Main function
-int main()
-{
-  if (FULLSCREEN)
-  {
+int main() {
+  if (FULLSCREEN) {
     SetConfigFlags(FLAG_WINDOW_TOPMOST | FLAG_WINDOW_UNDECORATED);
     InitWindow(0, 0, "Fractal Explorer - Multi-threaded");
     HideCursor();
@@ -311,17 +273,14 @@ int main()
     tileWidth = SCREEN_WIDTH / partsX;
     tileHeight = SCREEN_HEIGHT / partsY;
   }
-  else
-  {
+  else {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Fractal Explorer - Multi-threaded");
   }
   SetTargetFPS(TARGET_FPS);
 
   // Create tile textures
-  for (int y = 0; y < partsY; y++)
-  {
-    for (int x = 0; x < partsX; x++)
-    {
+  for (int y = 0; y < partsY; y++) {
+    for (int x = 0; x < partsX; x++) {
       Tile &tile = tiles[y * partsX + x];
       tile.tileX = x;
       tile.tileY = y;
@@ -339,8 +298,7 @@ int main()
   float maxIterations = MAX_ITERATIONS;
 
   // Make it easier to call the function
-  auto customUpdateTilesParallel = [&prevCamX, &prevCamY, &prevZoom, &maxIterations, &generation](long double cx, long double cy, long double z)
-  {
+  auto customUpdateTilesParallel = [&prevCamX, &prevCamY, &prevZoom, &maxIterations, &generation](long double cx, long double cy, long double z) {
     updateTilesParallel(cameraX, cameraY, zoom, generation, maxIterations, prevCamX - cameraX, prevCamY - cameraY);
     prevCamX = cameraX;
     prevCamY = cameraY;
@@ -352,37 +310,31 @@ int main()
   customUpdateTilesParallel(cameraX, cameraY, zoom);
 
   // Main loop
-  while (!WindowShouldClose())
-  {
+  while (!WindowShouldClose()) {
     // Camera movement and zoom
-    if (IsKeyDown(KEY_W)) {
-      cameraY -= cameraSpeed / zoom / TARGET_FPS;
-    } if (IsKeyDown(KEY_S)) {
-      cameraY += cameraSpeed / zoom / TARGET_FPS;
-    } if (IsKeyDown(KEY_A)) {
-      cameraX -= cameraSpeed / zoom / TARGET_FPS;
-    } if (IsKeyDown(KEY_D)) {
-      cameraX += cameraSpeed / zoom / TARGET_FPS;
-    } if (IsKeyDown(KEY_UP)) {
-      zoom += zoomSpeed * zoom / TARGET_FPS;
-    } if (IsKeyDown(KEY_DOWN)) {
-      zoom -= zoomSpeed * zoom / TARGET_FPS;
-    } if (IsKeyPressed(KEY_LEFT_SHIFT)) {
-      SHOW_PARTS = !SHOW_PARTS;
-    }
+    if (IsKeyDown(KEY_W)) { cameraY -= cameraSpeed / zoom / TARGET_FPS; }
+    if (IsKeyDown(KEY_S)) { cameraY += cameraSpeed / zoom / TARGET_FPS; }
+    if (IsKeyDown(KEY_A)) { cameraX -= cameraSpeed / zoom / TARGET_FPS; }
+    if (IsKeyDown(KEY_D)) { cameraX += cameraSpeed / zoom / TARGET_FPS; }
+    if (IsKeyDown(KEY_UP)) { zoom += zoomSpeed * zoom / TARGET_FPS; }
+    if (IsKeyDown(KEY_DOWN)) { zoom -= zoomSpeed * zoom / TARGET_FPS; }
+    if (IsKeyPressed(KEY_LEFT_SHIFT)) { SHOW_PARTS = !SHOW_PARTS; }
     // Change number of iterations
     if (IsKeyPressed(KEY_LEFT)) {
       maxIterations -= 100;
       customUpdateTilesParallel(cameraX, cameraY, zoom);
-    } if (IsKeyPressed(KEY_RIGHT)) {
+    }
+    if (IsKeyPressed(KEY_RIGHT)) {
       maxIterations += 100;
       customUpdateTilesParallel(cameraX, cameraY, zoom);
-    } if (IsKeyPressed(KEY_R)) { // Reset view
+    }
+    if (IsKeyPressed(KEY_R)) { // Reset view
       cameraX = 0;
       cameraY = 0;
       zoom = SCREEN_WIDTH / 3;
       customUpdateTilesParallel(cameraX, cameraY, zoom);
-    } if (IsKeyPressed(KEY_C)) { // Output camera position and zoom
+    }
+    if (IsKeyPressed(KEY_C)) { // Output camera position and zoom
       std::cout << TextFormat("Zoom: %.36f", (float)zoom) << std::endl;
       std::cout << TextFormat("Camera X: %.36f", (float)cameraX) << std::endl;
       std::cout << TextFormat("Camera Y: %.36f", (float)cameraY) << std::endl;
@@ -390,38 +342,31 @@ int main()
 
     // Automatically re-render the fractal if the view moved too much
     float acceptedChange = 1000.f * cameraAcceptedChange / zoom;
-    if (IsKeyPressed(KEY_SPACE) || abs(cameraX - prevCamX) >= acceptedChange || abs(cameraY - prevCamY) >= acceptedChange || abs(1 - (zoom / prevZoom)) >= zoomAcceptedChange)
-    {
+    if (IsKeyPressed(KEY_SPACE) || abs(cameraX - prevCamX) >= acceptedChange || abs(cameraY - prevCamY) >= acceptedChange || abs(1 - (zoom / prevZoom)) >= zoomAcceptedChange) {
       customUpdateTilesParallel(cameraX, cameraY, zoom);
     }
 
     // Do the threads
-    while (runningThreads.load(std::memory_order_relaxed) < MAX_THREADS && !pendingTiles.empty())
-    {
+    while (runningThreads.load(std::memory_order_relaxed) < MAX_THREADS && !pendingTiles.empty()) {
       PendingTile next = pendingTiles.front();
       pendingTiles.pop_front();
       tilesScheduled.erase(next.index);
 
+      // Check that the tile has not already been computed by a newer generation
       Tile &tile = tiles[next.index];
-      if (next.generation - tile.generation >= 0)
-      { // Check that the tile has not already been computed by a newer generation
+      if (next.generation - tile.generation >= 0) {
         std::thread(computeTileThread, next.index, next.cx, next.cy, next.z, next.generation, next.maxIterations).detach();
       }
     }
 
     // Iterate trough each tile to check if needed to copy pixels to texture
-    for (auto &tile : tiles)
-    {
-      if (!tile.hasComputed)
-      {
-        continue;
-      }
+    for (auto &tile : tiles) {
+      if (!tile.hasComputed) { continue; }
       {
         std::lock_guard<std::mutex> lock(tile.texMutex);
 
         // To not get visual glitches
-        if (USE_OLD_TEXTURES)
-        {
+        if (USE_OLD_TEXTURES) {
           // Draw oldTexture on veryOldTexture
           BeginTextureMode(tile.veryOldTexture);
           DrawTexturePro(tile.oldTexture.texture,
@@ -464,11 +409,9 @@ int main()
     ClearBackground(BLACK);
 
     // Draw the old textures to stop visual glitches
-    if (USE_OLD_TEXTURES)
-    {
+    if (USE_OLD_TEXTURES) {
       // Very old texture
-      for (auto &tile : tiles)
-      {
+      for (auto &tile : tiles) {
         {
           std::lock_guard<std::mutex> lock(tile.texMutex);
 
@@ -484,16 +427,14 @@ int main()
                          {0, 0}, 0, WHITE);
 
           // Only for debug
-          if (SHOW_PARTS)
-          {
+          if (SHOW_PARTS) {
             DrawRectangleLines(startX, startY, endX - startX, endY - startY, GREEN);
           }
         }
       }
 
       // Old texture
-      for (auto &tile : tiles)
-      {
+      for (auto &tile : tiles) {
         {
           std::lock_guard<std::mutex> lock(tile.texMutex);
 
@@ -509,8 +450,7 @@ int main()
                          {0, 0}, 0, WHITE);
 
           // Only for debug
-          if (SHOW_PARTS)
-          {
+          if (SHOW_PARTS) {
             DrawRectangleLines(startX, startY, endX - startX, endY - startY, RED);
           }
         }
@@ -518,8 +458,7 @@ int main()
     }
 
     // Draw all tiles
-    for (auto &tile : tiles)
-    {
+    for (auto &tile : tiles) {
       {
         std::lock_guard<std::mutex> lock(tile.texMutex);
 
@@ -535,8 +474,7 @@ int main()
                        {0, 0}, 0, WHITE);
 
         // Only for debug
-        if (SHOW_PARTS)
-        {
+        if (SHOW_PARTS) {
           DrawRectangleLines(startX, startY, endX - startX, endY - startY, BLUE);
         }
       }
@@ -560,8 +498,7 @@ int main()
   }
 
   // Unload all textures from memory
-  for (auto &tile : tiles)
-  {
+  for (auto &tile : tiles) {
     UnloadRenderTexture(tile.texture);
     UnloadRenderTexture(tile.oldTexture);
     UnloadRenderTexture(tile.veryOldTexture);
