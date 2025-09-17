@@ -1,8 +1,10 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
-#include "raylib.h"
 #include <thread>
 #include <iostream>
+
+// Own implementations
+#include "sets_definition.hpp"
 
 
 // Constants
@@ -33,37 +35,6 @@ const int tileHeight = SCREEN_HEIGHT / TILES_Y;
 const int pixelCount = tileWidth * tileHeight;
 const int frameCount = FPS * DURATION; // 20 seconds of video
 const long double zoomStep = powl(TARGET_ZOOM / zoom, 1.0L / frameCount);
-
-// DEFINITION OF THE SETS //
-
-// Mandelbrot set
-const long double pisqrtpi = PI * sqrt(PI);
-const long double pisqrt2 = PI * sqrt(2);
-Color getColorFromPoint_Mandelbrot(long double a, long double b, float maxIterations) {
-  long double ca = a;
-  long double cb = b;
-
-  int n;
-  
-  long double aa, bb;
-  for (n = 0; (abs(a+b) <= 16) && (n < maxIterations); n++) {
-    aa = a*a - b*b + ca;
-    b = 2. * a * b + cb;
-    a = aa;
-  }
-
-  // Coloring
-  Color color = BLACK;
-  if (n < maxIterations) {
-    color.a = 255;
-    color.r = ((int) (n * PI)) % 255;
-    color.g = ((int) (n * pisqrtpi)) % 255;
-    color.b = ((int) (n * pisqrt2)) % 255;
-  }
-  
-  return color;
-}
-
 
 // CODE //
 

@@ -2,8 +2,8 @@
   "version": 8,
   "configurePresets": [
     {
-      "name": "Clang 15.0.0 arm64-apple-darwin23.3.0",
-      "displayName": "Clang 15.0.0 arm64-apple-darwin23.3.0",
+      "name": "raylib-preset",
+      "displayName": "Clang 17.0.0 arm64-apple-darwin25.0.0",
       "description": "Using compilers: C = /usr/bin/clang, CXX = /usr/bin/clang++",
       "binaryDir": "${sourceDir}/out/build/${presetName}",
       "cacheVariables": {
