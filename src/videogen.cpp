@@ -15,9 +15,9 @@ const int FPS = 24;
 const int DURATION = 10; // In seconds
 
 // What to capture
-const long double CAMERA_X = -0.685125052928924560546875000000000000L;
-const long double CAMERA_Y = 0.314403444528579711914062500000000000L;
-const long double TARGET_ZOOM = 86977941057044480.000000000000000000000000000000000000L;
+const long double CAMERA_X = -0.685125052928924560546875000000000000;
+const long double CAMERA_Y = 0.314403444528579711914062500000000000;
+const long double TARGET_ZOOM = 86977941057044480.000000000000000000000000000000000000;
 long double zoom = 500;
 
 // How many horizontal and vertical tiles to create
@@ -34,7 +34,7 @@ const int tileWidth = SCREEN_WIDTH / TILES_X;
 const int tileHeight = SCREEN_HEIGHT / TILES_Y;
 const int pixelCount = tileWidth * tileHeight;
 const int frameCount = FPS * DURATION; // 20 seconds of video
-const long double zoomStep = powl(TARGET_ZOOM / zoom, 1.0L / frameCount);
+const long double zoomStep = pow(TARGET_ZOOM / zoom, 1.0L / frameCount);
 
 // CODE //
 

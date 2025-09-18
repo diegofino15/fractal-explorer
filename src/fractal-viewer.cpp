@@ -6,14 +6,14 @@
 #include "sets_definition.hpp"
 
 
-// Constants
-const bool FULLSCREEN = true;
+// Constants (changeable with flags)
+bool FULLSCREEN = false;
 int SCREEN_WIDTH = 1600;
 int SCREEN_HEIGHT = 900;
 // What set to display | 0 : Mandebrot | 1 : Julia | 2 : Burning ship | 3 : Tricorn | 4 : Phoenix
-const int SET = 0;
-const int MAX_ITERATIONS = 2000;
-const int TARGET_FPS = 120;
+int SET = 0;
+int MAX_ITERATIONS = 2000;
+int TARGET_FPS = 90;
 
 // How many horizontal and vertical tiles to create
 const int partsX = 16;
@@ -23,12 +23,12 @@ bool SHOW_PARTS = false;
 
 // Detaches the threads, makes the app smoother but can cause a lot of visual glitches at high iterations and big zoom
 // If set to false, there are no visual glitches but the app is a lot slower and has freezes at high iterations
-const bool DETACHED_MODE = true;
+bool DETACHED_MODE = true;
 const int MAX_THREADS = std::thread::hardware_concurrency();
 // Should be set to true, avoids unnecessary re-renders of the same tile, makes the app faster but transitions can be worse
-const bool AVOID_DUPLICATES = true;
+bool AVOID_DUPLICATES = true;
 // Should reduce black frames, but slows down the app
-const bool USE_OLD_TEXTURES = true;
+bool USE_OLD_TEXTURES = true;
 
 // What change in zoom should trigger a re-render of the view (0.5 -> 50%)
 const float zoomAcceptedChange = 0.25f;
@@ -38,11 +38,11 @@ const float cameraAcceptedChange = 0.25f;
 // Initial position and settings of the camera
 long double cameraX = 0;
 long double cameraY = 0;
-const float cameraSpeed = 500.0f;
+float cameraSpeed = 500.0f;
 long double zoom = 500;
-const float zoomSpeed = 1.0f;
-int tileWidth = SCREEN_WIDTH / partsX;
-int tileHeight = SCREEN_HEIGHT / partsY;
+float zoomSpeed = 1.0f;
+int tileWidth;
+int tileHeight;
 
 // Multi-threading
 std::atomic<int> runningThreads(0);
@@ -263,7 +263,47 @@ void updateTilesParallel(long double cx, long double cy, long double z, int gene
 }
 
 // Main function
-int main() {
+int main(int argc, char* argv[]) {
+  // Replace constants by the ones given in the flags (if present)
+  for (int i = 1; i < argc; i++) {
+    std::string arg = argv[i];
+    if (arg == "--fullscreen") {
+      FULLSCREEN = true;
+    } else if (arg == "--width") {
+      SCREEN_WIDTH = std::stoi(argv[++i]);
+    } else if (arg == "--height") {
+      SCREEN_HEIGHT = std::stoi(argv[++i]);
+    } else if (arg == "--set") {
+      SET = std::stoi(argv[++i]);
+    } else if (arg == "--it") {
+      MAX_ITERATIONS = std::stoi(argv[++i]);
+    } else if (arg == "--fps") {
+      TARGET_FPS = std::stoi(argv[++i]);
+    } else if (arg == "--show-parts") {
+      SHOW_PARTS = true;
+    } else if (arg == "--no-detached") {
+      DETACHED_MODE = false;
+    } else if (arg == "--no-avoid-duplicates") {
+      AVOID_DUPLICATES = false;
+    } else if (arg == "--no-old-textures") {
+      USE_OLD_TEXTURES = false;
+    } else if (arg == "--zoom") {
+      zoom = std::stold(argv[++i]);
+    } else if (arg == "--x") {
+      cameraX = std::stold(argv[++i]);
+    } else if (arg == "--y") {
+      cameraY = std::stold(argv[++i]);
+    } else if (arg == "--speed") {
+      cameraSpeed = std::stof(argv[++i]);
+    } else if (arg == "--zoom-speed") {
+      zoomSpeed = std::stof(argv[++i]);
+    }
+  }
+
+  // Compute values based of these constants
+  tileWidth = SCREEN_WIDTH / partsX;
+  tileHeight = SCREEN_HEIGHT / partsY;
+  
   if (FULLSCREEN) {
     SetConfigFlags(FLAG_WINDOW_TOPMOST | FLAG_WINDOW_UNDECORATED);
     InitWindow(0, 0, "Fractal Explorer - Multi-threaded");

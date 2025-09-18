@@ -1,6 +1,5 @@
 #include "sets_definition.hpp"
 #include <iostream>
-#include <cmath>
 
 
 // Mandelbrot
@@ -12,7 +11,7 @@ Color getColorFromPoint_Mandelbrot(long double a, long double b, float maxIterat
 
     int n;
     long double aa, bb;
-    for (n = 0; (std::abs(a + b) <= 16) && (n < maxIterations); n++) {
+    for (n = 0; (a * a + b * b <= 16) && (n < maxIterations); n++) {
         aa = a * a - b * b + ca;
         b  = 2.0L * a * b + cb;
         a  = aa;
@@ -220,4 +219,3 @@ Color getColorFromPoint_Lyapunov(long double a, long double b, int maxIterations
 
   return Color{r, g, bl, 255};
 }
-
