@@ -1,5 +1,6 @@
 #include "sets_definition.hpp"
 #include <iostream>
+#include <cmath>
 
 
 // Mandelbrot

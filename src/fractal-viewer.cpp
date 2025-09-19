@@ -10,7 +10,7 @@
 bool FULLSCREEN = false;
 int SCREEN_WIDTH = 1600;
 int SCREEN_HEIGHT = 900;
-// What set to display | 0 : Mandebrot | 1 : Julia | 2 : Burning ship | 3 : Tricorn | 4 : Phoenix
+// What set to display | 0 : Mandelbrot | 1 : Julia | 2 : Burning ship | 3 : Tricorn | 4 : Phoenix
 int SET = 0;
 int MAX_ITERATIONS = 2000;
 int TARGET_FPS = 90;
@@ -27,22 +27,24 @@ bool DETACHED_MODE = true;
 const int MAX_THREADS = std::thread::hardware_concurrency();
 // Should be set to true, avoids unnecessary re-renders of the same tile, makes the app faster but transitions can be worse
 bool AVOID_DUPLICATES = true;
-// Should reduce black frames, but slows down the app
+// Should reduce black frames, but slows down the app (can introduce some stutters)
 bool USE_OLD_TEXTURES = true;
 
 // What change in zoom should trigger a re-render of the view (0.5 -> 50%)
 const float zoomAcceptedChange = 0.25f;
 // What change in position should trigger a re-render of the view
-const float cameraAcceptedChange = 0.25f;
+const float cameraAcceptedChange = 0.25f * 1000.0f;
 
 // Initial position and settings of the camera
 long double cameraX = 0;
 long double cameraY = 0;
 float cameraSpeed = 500.0f;
+
 long double zoom = 500;
-float zoomSpeed = 1.0f;
-int tileWidth;
-int tileHeight;
+float zoomSpeed = 0.85f;
+
+int tileWidth, tileHeight;
+float halfScreenWidth, halfScreenHeight;
 
 // Multi-threading
 std::atomic<int> runningThreads(0);
@@ -100,24 +102,27 @@ void computeTileThread(int tileIndex, long double cx, long double cy, long doubl
   }
 
   // Compute the pixels
+  int yTileWidth;
+  long double posx, posy;
   Color *pixels = new Color[tileWidth * tileHeight];
   for (int y = 0; y < tileHeight; y++) {
+    yTileWidth = y * tileWidth;
     for (int x = 0; x < tileWidth; x++) {
-      long double posx = (x + tile.tileX * tileWidth - SCREEN_WIDTH / 2.0) / z + cx;
-      long double posy = (y + tile.tileY * tileHeight - SCREEN_HEIGHT / 2.0) / z + cy;
+      posx = (x + tile.tileX * tileWidth - halfScreenWidth) / z + cx;
+      posy = (y + tile.tileY * tileHeight - halfScreenHeight) / z + cy;
 
       if (SET == 0) {
-        pixels[y * tileWidth + x] = getColorFromPoint_Mandelbrot(posx, posy, maxIterations);
+        pixels[yTileWidth + x] = getColorFromPoint_Mandelbrot(posx, posy, maxIterations);
       } else if (SET == 1) {
-        pixels[y * tileWidth + x] = getColorFromPoint_Julia(posx, posy, maxIterations);
+        pixels[yTileWidth + x] = getColorFromPoint_Julia(posx, posy, maxIterations);
       } else if (SET == 2) {
-        pixels[y * tileWidth + x] = getColorFromPoint_BurningShip(posx, posy, maxIterations);
+        pixels[yTileWidth + x] = getColorFromPoint_BurningShip(posx, posy, maxIterations);
       } else if (SET == 3) {
-        pixels[y * tileWidth + x] = getColorFromPoint_Tricorn(posx, posy, maxIterations);
+        pixels[yTileWidth + x] = getColorFromPoint_Tricorn(posx, posy, maxIterations);
       } else if (SET == 4) {
-        pixels[y * tileWidth + x] = getColorFromPoint_Phoenix(posx, posy, maxIterations);
+        pixels[yTileWidth + x] = getColorFromPoint_Phoenix(posx, posy, maxIterations);
       } else if (SET == 5) {
-        pixels[y * tileWidth + x] = getColorFromPoint_Lyapunov(posx, posy, maxIterations);
+        pixels[yTileWidth + x] = getColorFromPoint_Lyapunov(posx, posy, maxIterations);
       }
     }
   }
@@ -303,6 +308,10 @@ int main(int argc, char* argv[]) {
   // Compute values based of these constants
   tileWidth = SCREEN_WIDTH / partsX;
   tileHeight = SCREEN_HEIGHT / partsY;
+  halfScreenWidth = SCREEN_WIDTH / 2.0;
+  halfScreenHeight = SCREEN_HEIGHT / 2.0;
+  const float cameraMovementPerFrame = cameraSpeed / TARGET_FPS;
+  const float zoomPerFrame = zoomSpeed / TARGET_FPS;
   
   if (FULLSCREEN) {
     SetConfigFlags(FLAG_WINDOW_TOPMOST | FLAG_WINDOW_UNDECORATED);
@@ -338,7 +347,7 @@ int main(int argc, char* argv[]) {
   float maxIterations = MAX_ITERATIONS;
 
   // Make it easier to call the function
-  auto customUpdateTilesParallel = [&prevCamX, &prevCamY, &prevZoom, &maxIterations, &generation](long double cx, long double cy, long double z) {
+  auto customUpdateTilesParallel = [&prevCamX, &prevCamY, &prevZoom, &maxIterations, &generation]() {
     updateTilesParallel(cameraX, cameraY, zoom, generation, maxIterations, prevCamX - cameraX, prevCamY - cameraY);
     prevCamX = cameraX;
     prevCamY = cameraY;
@@ -347,43 +356,43 @@ int main(int argc, char* argv[]) {
   };
 
   // First render
-  customUpdateTilesParallel(cameraX, cameraY, zoom);
+  customUpdateTilesParallel();
 
   // Main loop
   while (!WindowShouldClose()) {
     // Camera movement and zoom
-    if (IsKeyDown(KEY_W)) { cameraY -= cameraSpeed / zoom / TARGET_FPS; }
-    if (IsKeyDown(KEY_S)) { cameraY += cameraSpeed / zoom / TARGET_FPS; }
-    if (IsKeyDown(KEY_A)) { cameraX -= cameraSpeed / zoom / TARGET_FPS; }
-    if (IsKeyDown(KEY_D)) { cameraX += cameraSpeed / zoom / TARGET_FPS; }
-    if (IsKeyDown(KEY_UP)) { zoom += zoomSpeed * zoom / TARGET_FPS; }
-    if (IsKeyDown(KEY_DOWN)) { zoom -= zoomSpeed * zoom / TARGET_FPS; }
+    if (IsKeyDown(KEY_W)) { cameraY -= cameraMovementPerFrame / zoom; }
+    if (IsKeyDown(KEY_S)) { cameraY += cameraMovementPerFrame / zoom; }
+    if (IsKeyDown(KEY_A)) { cameraX -= cameraMovementPerFrame / zoom; }
+    if (IsKeyDown(KEY_D)) { cameraX += cameraMovementPerFrame / zoom; }
+    if (IsKeyDown(KEY_UP)) { zoom *= (1 + zoomPerFrame); }
+    if (IsKeyDown(KEY_DOWN)) { zoom *= (1 - zoomPerFrame); }
     if (IsKeyPressed(KEY_LEFT_SHIFT)) { SHOW_PARTS = !SHOW_PARTS; }
     // Change number of iterations
     if (IsKeyPressed(KEY_LEFT)) {
       maxIterations -= 100;
-      customUpdateTilesParallel(cameraX, cameraY, zoom);
+      customUpdateTilesParallel();
     }
     if (IsKeyPressed(KEY_RIGHT)) {
       maxIterations += 100;
-      customUpdateTilesParallel(cameraX, cameraY, zoom);
+      customUpdateTilesParallel();
     }
     if (IsKeyPressed(KEY_R)) { // Reset view
       cameraX = 0;
       cameraY = 0;
       zoom = SCREEN_WIDTH / 3;
-      customUpdateTilesParallel(cameraX, cameraY, zoom);
+      customUpdateTilesParallel();
     }
     if (IsKeyPressed(KEY_C)) { // Output camera position and zoom
-      std::cout << TextFormat("Zoom: %.36f", (float)zoom) << std::endl;
-      std::cout << TextFormat("Camera X: %.36f", (float)cameraX) << std::endl;
-      std::cout << TextFormat("Camera Y: %.36f", (float)cameraY) << std::endl;
+      std::cout << TextFormat("Zoom: %.36f", (float) zoom) << std::endl;
+      std::cout << TextFormat("Camera X: %.36f", (float) cameraX) << std::endl;
+      std::cout << TextFormat("Camera Y: %.36f", (float) cameraY) << std::endl;
     }
 
     // Automatically re-render the fractal if the view moved too much
-    float acceptedChange = 1000.f * cameraAcceptedChange / zoom;
+    float acceptedChange = cameraAcceptedChange / zoom;
     if (IsKeyPressed(KEY_SPACE) || abs(cameraX - prevCamX) >= acceptedChange || abs(cameraY - prevCamY) >= acceptedChange || abs(1 - (zoom / prevZoom)) >= zoomAcceptedChange) {
-      customUpdateTilesParallel(cameraX, cameraY, zoom);
+      customUpdateTilesParallel();
     }
 
     // Do the threads
@@ -434,10 +443,10 @@ int main(int argc, char* argv[]) {
 
         // Save the old camera position from when it was computed
         UpdateTexture(tile.texture.texture, tile.pixels);
-        tile.a1 = (tile.tileX * tileWidth - SCREEN_WIDTH / 2.0) / tile.z + tile.cx;
-        tile.b1 = (tile.tileY * tileHeight - SCREEN_HEIGHT / 2.0) / tile.z + tile.cy;
-        tile.a2 = ((tile.tileX + 1) * tileWidth - SCREEN_WIDTH / 2.0) / tile.z + tile.cx;
-        tile.b2 = ((tile.tileY + 1) * tileHeight - SCREEN_HEIGHT / 2.0) / tile.z + tile.cy;
+        tile.a1 = (tile.tileX * tileWidth - halfScreenWidth) / tile.z + tile.cx;
+        tile.b1 = (tile.tileY * tileHeight - halfScreenHeight) / tile.z + tile.cy;
+        tile.a2 = ((tile.tileX + 1) * tileWidth - halfScreenWidth) / tile.z + tile.cx;
+        tile.b2 = ((tile.tileY + 1) * tileHeight - halfScreenHeight) / tile.z + tile.cy;
 
         delete[] tile.pixels;
         tile.hasComputed = false;
@@ -456,10 +465,10 @@ int main(int argc, char* argv[]) {
           std::lock_guard<std::mutex> lock(tile.texMutex);
 
           // Calculate the right position to show the old pixels, based on where they were computed
-          float startX = (tile.veryolda1 - cameraX) * zoom + SCREEN_WIDTH / 2.0;
-          float startY = (tile.veryoldb1 - cameraY) * zoom + SCREEN_HEIGHT / 2.0;
-          float endX = (tile.veryolda2 - cameraX) * zoom + SCREEN_WIDTH / 2.0;
-          float endY = (tile.veryoldb2 - cameraY) * zoom + SCREEN_HEIGHT / 2.0;
+          float startX = (tile.veryolda1 - cameraX) * zoom + halfScreenWidth;
+          float startY = (tile.veryoldb1 - cameraY) * zoom + halfScreenHeight;
+          float endX = (tile.veryolda2 - cameraX) * zoom + halfScreenWidth;
+          float endY = (tile.veryoldb2 - cameraY) * zoom + halfScreenHeight;
 
           DrawTexturePro(tile.veryOldTexture.texture,
                          {0, 0, (float)tileWidth, (float)tileHeight},
@@ -479,10 +488,10 @@ int main(int argc, char* argv[]) {
           std::lock_guard<std::mutex> lock(tile.texMutex);
 
           // Calculate the right position to show the old pixels, based on where they were computed
-          float startX = (tile.olda1 - cameraX) * zoom + SCREEN_WIDTH / 2.0;
-          float startY = (tile.oldb1 - cameraY) * zoom + SCREEN_HEIGHT / 2.0;
-          float endX = (tile.olda2 - cameraX) * zoom + SCREEN_WIDTH / 2.0;
-          float endY = (tile.oldb2 - cameraY) * zoom + SCREEN_HEIGHT / 2.0;
+          float startX = (tile.olda1 - cameraX) * zoom +  halfScreenWidth;
+          float startY = (tile.oldb1 - cameraY) * zoom + halfScreenHeight;
+          float endX = (tile.olda2 - cameraX) * zoom + halfScreenWidth;
+          float endY = (tile.oldb2 - cameraY) * zoom + halfScreenHeight;
 
           DrawTexturePro(tile.oldTexture.texture,
                          {0, 0, (float)tileWidth, (float)tileHeight},
@@ -503,10 +512,10 @@ int main(int argc, char* argv[]) {
         std::lock_guard<std::mutex> lock(tile.texMutex);
 
         // Calculate the right position to show the pixels, based on where they were computed
-        float startX = (tile.a1 - cameraX) * zoom + SCREEN_WIDTH / 2.0;
-        float startY = (tile.b1 - cameraY) * zoom + SCREEN_HEIGHT / 2.0;
-        float endX = (tile.a2 - cameraX) * zoom + SCREEN_WIDTH / 2.0;
-        float endY = (tile.b2 - cameraY) * zoom + SCREEN_HEIGHT / 2.0;
+        float startX = (tile.a1 - cameraX) * zoom + halfScreenWidth;
+        float startY = (tile.b1 - cameraY) * zoom + halfScreenHeight;
+        float endX = (tile.a2 - cameraX) * zoom + halfScreenWidth;
+        float endY = (tile.b2 - cameraY) * zoom + halfScreenHeight;
 
         DrawTexturePro(tile.texture.texture,
                        {0, 0, (float)tileWidth, (float)tileHeight},
