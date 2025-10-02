@@ -304,14 +304,6 @@ int main(int argc, char* argv[]) {
       zoomSpeed = std::stof(argv[++i]);
     }
   }
-
-  // Compute values based of these constants
-  tileWidth = SCREEN_WIDTH / partsX;
-  tileHeight = SCREEN_HEIGHT / partsY;
-  halfScreenWidth = SCREEN_WIDTH / 2.0;
-  halfScreenHeight = SCREEN_HEIGHT / 2.0;
-  const float cameraMovementPerFrame = cameraSpeed / TARGET_FPS;
-  const float zoomPerFrame = zoomSpeed / TARGET_FPS;
   
   if (FULLSCREEN) {
     SetConfigFlags(FLAG_WINDOW_TOPMOST | FLAG_WINDOW_UNDECORATED);
@@ -326,6 +318,14 @@ int main(int argc, char* argv[]) {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Fractal Explorer - Multi-threaded");
   }
   SetTargetFPS(TARGET_FPS);
+
+  // Compute values based of the given flags
+  tileWidth = SCREEN_WIDTH / partsX;
+  tileHeight = SCREEN_HEIGHT / partsY;
+  halfScreenWidth = SCREEN_WIDTH / 2.0;
+  halfScreenHeight = SCREEN_HEIGHT / 2.0;
+  const float cameraMovementPerFrame = cameraSpeed / TARGET_FPS;
+  const float zoomPerFrame = zoomSpeed / TARGET_FPS;
 
   // Create tile textures
   for (int y = 0; y < partsY; y++) {
