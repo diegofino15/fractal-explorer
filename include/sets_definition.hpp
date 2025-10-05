@@ -3,6 +3,7 @@
 
 // Mandelbrot
 Color getColorFromPoint_Mandelbrot(long double a, long double b, float maxIterations);
+Color getColorFromPoint_Mandelbrot_LightEffect(long double a, long double b, float maxIterations);
 
 // Julia
 Color getColorFromPoint_Julia(long double a, long double b, float maxIterations);

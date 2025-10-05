@@ -29,6 +29,86 @@ Color getColorFromPoint_Mandelbrot(long double a, long double b, float maxIterat
     return color;
 }
 
+
+// Mandelbrot "light" effect
+static const long double PI2 = PI / 180.0L; // degrees → radians
+Color getColorFromPoint_Mandelbrot_LightEffect(long double a, long double b, float maxIterations) {
+    // Parameters for lighting
+    const long double h2 = 1.5L;       // height of light source
+    const long double angle = 45.0L;   // incoming light direction (degrees)
+    const long double R = 100.0L;      // escape radius
+
+    // Convert angle to unit vector v = exp(i * angle)
+    long double v_re = cosl(angle * PI2);
+    long double v_im = sinl(angle * PI2);
+
+    // Start iteration
+    long double ca = a;
+    long double cb = b;
+
+    long double z_re = ca;
+    long double z_im = cb;
+
+    long double der_re = 1.0L;
+    long double der_im = 0.0L;
+
+    int n;
+    bool escaped = false;
+
+    for (n = 0; n < maxIterations; n++) {
+        if (z_re * z_re + z_im * z_im > R * R) {
+            escaped = true;
+            break;
+        }
+
+        // z = z^2 + c
+        long double new_z_re = z_re * z_re - z_im * z_im + ca;
+        long double new_z_im = 2.0L * z_re * z_im + cb;
+
+        // der = der * 2z + 1
+        long double new_der_re = der_re * (2.0L * z_re) - der_im * (2.0L * z_im) + 1.0L;
+        long double new_der_im = der_re * (2.0L * z_im) + der_im * (2.0L * z_re);
+
+        z_re = new_z_re;
+        z_im = new_z_im;
+
+        der_re = new_der_re;
+        der_im = new_der_im;
+    }
+
+    Color color = BLACK;
+    if (!escaped) {
+        // Did not escape
+        color = BLACK; // Inside set
+    } else {
+        // Compute u = z/der
+        long double denom = der_re * der_re + der_im * der_im;
+        if (denom == 0.0L) denom = 1e-16L;
+        long double u_re = (z_re * der_re + z_im * der_im) / denom;
+        long double u_im = (z_im * der_re - z_re * der_im) / denom;
+
+        // Normalize u
+        long double norm = sqrtl(u_re * u_re + u_im * u_im);
+        if (norm == 0.0L) norm = 1e-16L;
+        u_re /= norm;
+        u_im /= norm;
+
+        // Dot product with light direction (u.re, u.im, 1) · (v.re, v.im, h2)
+        long double t = u_re * v_re + u_im * v_im + h2;
+        t /= (1.0L + h2);  // rescale
+
+        if (t < 0.0L) t = 0.0L;
+        if (t > 1.0L) t = 1.0L;
+
+        // Linear interpolation black→white
+        unsigned char shade = (unsigned char)(t * 255.0L);
+        color = {shade, shade, shade, 255};
+    }
+
+    return color;
+}
+
+
 // Julia
 const long double julia_ca = -0.7;    // Real part of c
 const long double julia_cb = 0.27015; // Imaginary part of c

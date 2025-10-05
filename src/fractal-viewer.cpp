@@ -10,7 +10,7 @@
 bool FULLSCREEN = false;
 int SCREEN_WIDTH = 1600;
 int SCREEN_HEIGHT = 900;
-// What set to display | 0 : Mandelbrot | 1 : Julia | 2 : Burning ship | 3 : Tricorn | 4 : Phoenix
+// What set to display | 0 : Mandelbrot | 1 : Julia | 2 : Burning ship | 3 : Tricorn | 4 : Phoenix | 5 : Lyapunov | 6 : Mandelbrot Light Effect
 int SET = 0;
 int MAX_ITERATIONS = 2000;
 int TARGET_FPS = 90;
@@ -123,6 +123,8 @@ void computeTileThread(int tileIndex, long double cx, long double cy, long doubl
         pixels[yTileWidth + x] = getColorFromPoint_Phoenix(posx, posy, maxIterations);
       } else if (SET == 5) {
         pixels[yTileWidth + x] = getColorFromPoint_Lyapunov(posx, posy, maxIterations);
+      } else if (SET == 6) {
+        pixels[yTileWidth + x] = getColorFromPoint_Mandelbrot_LightEffect(posx, posy, maxIterations);
       }
     }
   }
