@@ -19,6 +19,11 @@ The project is already very optimized, uses multithreading, and uses "old textur
 
 It uses a tile-based system : the screen is divided into 144 tiles (16*9), that are each rendered on their own thread. When a certain threashold of zoom or movement is reached, the tiles get re-rendered with the new camera position and zoom (while still showing the old texture to avoid black spots).
 
+## Compiling
+
+You need to have **raylib** installed and available on your PATH (you can install it via homebrew on MacOS), then you can run cmake build and the executable will compile.  
+The CMakeLists.txt file contains code to compile another executable called **videogen**, it lets you generate videos of zooming inside the fractals (still in development).
+
 ## Flags
 
 ### Window and general settings
@@ -26,7 +31,7 @@ It uses a tile-based system : the screen is divided into 144 tiles (16*9), that 
 --fullscreen : Sets the app to fullscreen
 --width [value] : Sets the width of the window (in pixels)
 --height [value] : Sets the height of the window (in pixels)
---set [value] : Fractal to display (0 : Mandelbrot | 1 : Julia | 2 : Burning ship | 3 : Tricorn | 4 : Phoenix)
+--set [value] : Fractal to display (0 : Mandelbrot | 1 : Julia | 2 : Burning ship | 3 : Tricorn | 4 : Phoenix | 5 : Lyapunov | 6 : Mandelbrot with "light effect")
 --it [value] : Sets the maximum number of iterations (can change with LEFT-ARROW and RIGHT-ARROW)
 --fps [value] : Sets the target FPS
 ```
