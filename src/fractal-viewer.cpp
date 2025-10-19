@@ -68,14 +68,14 @@ struct Tile {
   RenderTexture2D texture, oldTexture, veryOldTexture;
   int tileX, tileY;
 
-  // Coordinates of the top left and bottom right of the tile, in world space
-  long double a1, b1, a2, b2;
+  // Coordinates of the top left corner and size of the tile when it was computed
+  long double a1, b1, w, h;
   // Coordinates of the camera when the tile was computed
   long double cx, cy, z;
 
   // Old positions to draw the old texture
-  long double olda1, oldb1, olda2, oldb2;
-  long double veryolda1, veryoldb1, veryolda2, veryoldb2;
+  long double oldA1, oldB1, oldW, oldH;
+  long double veryOldA1, veryOldB1, veryOldW, veryOldH;
   int generation = 0;
 
   Color *pixels;
@@ -347,6 +347,7 @@ int main(int argc, char* argv[]) {
   long double prevZoom = zoom;
   int generation = 0;
   float maxIterations = MAX_ITERATIONS;
+  bool showPointer = false;
 
   // Make it easier to call the function
   auto customUpdateTilesParallel = [&prevCamX, &prevCamY, &prevZoom, &maxIterations, &generation]() {
@@ -370,6 +371,7 @@ int main(int argc, char* argv[]) {
     if (IsKeyDown(KEY_UP)) { zoom *= (1 + zoomPerFrame); }
     if (IsKeyDown(KEY_DOWN)) { zoom *= (1 - zoomPerFrame); }
     if (IsKeyPressed(KEY_LEFT_SHIFT)) { SHOW_PARTS = !SHOW_PARTS; }
+    if (IsKeyPressed(KEY_V)) { showPointer = !showPointer; }
     // Change number of iterations
     if (IsKeyPressed(KEY_LEFT)) {
       maxIterations -= 100;
@@ -425,10 +427,10 @@ int main(int argc, char* argv[]) {
                          {0, 0, (float)tileWidth, (float)tileHeight},
                          {0, 0}, 0, WHITE);
           EndTextureMode();
-          tile.veryolda1 = tile.olda1;
-          tile.veryoldb1 = tile.oldb1;
-          tile.veryolda2 = tile.olda2;
-          tile.veryoldb2 = tile.oldb2;
+          tile.veryOldA1 = tile.oldA1;
+          tile.veryOldB1 = tile.oldB1;
+          tile.veryOldW = tile.oldW;
+          tile.veryOldH = tile.oldH;
 
           // Draw texture on oldTexture
           BeginTextureMode(tile.oldTexture);
@@ -437,18 +439,18 @@ int main(int argc, char* argv[]) {
                          {0, 0, (float)tileWidth, (float)tileHeight},
                          {0, 0}, 0, WHITE);
           EndTextureMode();
-          tile.olda1 = tile.a1;
-          tile.oldb1 = tile.b1;
-          tile.olda2 = tile.a2;
-          tile.oldb2 = tile.b2;
+          tile.oldA1 = tile.a1;
+          tile.oldB1 = tile.b1;
+          tile.oldW = tile.w;
+          tile.oldH = tile.h;
         }
 
         // Save the old camera position from when it was computed
         UpdateTexture(tile.texture.texture, tile.pixels);
         tile.a1 = (tile.tileX * tileWidth - halfScreenWidth) / tile.z + tile.cx;
         tile.b1 = (tile.tileY * tileHeight - halfScreenHeight) / tile.z + tile.cy;
-        tile.a2 = ((tile.tileX + 1) * tileWidth - halfScreenWidth) / tile.z + tile.cx;
-        tile.b2 = ((tile.tileY + 1) * tileHeight - halfScreenHeight) / tile.z + tile.cy;
+        tile.w = tileWidth / tile.z;
+        tile.h = tileHeight / tile.z;
 
         delete[] tile.pixels;
         tile.hasComputed = false;
@@ -467,19 +469,19 @@ int main(int argc, char* argv[]) {
           std::lock_guard<std::mutex> lock(tile.texMutex);
 
           // Calculate the right position to show the old pixels, based on where they were computed
-          float startX = (tile.veryolda1 - cameraX) * zoom + halfScreenWidth;
-          float startY = (tile.veryoldb1 - cameraY) * zoom + halfScreenHeight;
-          float endX = (tile.veryolda2 - cameraX) * zoom + halfScreenWidth;
-          float endY = (tile.veryoldb2 - cameraY) * zoom + halfScreenHeight;
+          float startX = (tile.veryOldA1 - cameraX) * zoom + halfScreenWidth;
+          float startY = (tile.veryOldB1 - cameraY) * zoom + halfScreenHeight;
+          float w = tile.veryOldW * zoom;
+          float h = tile.veryOldH * zoom;
 
           DrawTexturePro(tile.veryOldTexture.texture,
-                         {0, 0, (float)tileWidth, (float)tileHeight},
-                         {startX, startY, endX - startX, endY - startY},
+                         {0, 0, (float) tileWidth, (float) tileHeight},
+                         {startX, startY, w, h},
                          {0, 0}, 0, WHITE);
 
           // Only for debug
           if (SHOW_PARTS) {
-            DrawRectangleLines(startX, startY, endX - startX, endY - startY, GREEN);
+            DrawRectangleLines(startX, startY, w, h, GREEN);
           }
         }
       }
@@ -490,19 +492,19 @@ int main(int argc, char* argv[]) {
           std::lock_guard<std::mutex> lock(tile.texMutex);
 
           // Calculate the right position to show the old pixels, based on where they were computed
-          float startX = (tile.olda1 - cameraX) * zoom +  halfScreenWidth;
-          float startY = (tile.oldb1 - cameraY) * zoom + halfScreenHeight;
-          float endX = (tile.olda2 - cameraX) * zoom + halfScreenWidth;
-          float endY = (tile.oldb2 - cameraY) * zoom + halfScreenHeight;
+          float startX = (tile.oldA1 - cameraX) * zoom +  halfScreenWidth;
+          float startY = (tile.oldB1 - cameraY) * zoom + halfScreenHeight;
+          float w = tile.oldW * zoom;
+          float h = tile.oldH * zoom;
 
           DrawTexturePro(tile.oldTexture.texture,
-                         {0, 0, (float)tileWidth, (float)tileHeight},
-                         {startX, startY, endX - startX, endY - startY},
+                         {0, 0, (float) tileWidth, (float) tileHeight},
+                         {startX, startY, w, h},
                          {0, 0}, 0, WHITE);
 
           // Only for debug
           if (SHOW_PARTS) {
-            DrawRectangleLines(startX, startY, endX - startX, endY - startY, RED);
+            DrawRectangleLines(startX, startY, w, h, RED);
           }
         }
       }
@@ -516,17 +518,17 @@ int main(int argc, char* argv[]) {
         // Calculate the right position to show the pixels, based on where they were computed
         float startX = (tile.a1 - cameraX) * zoom + halfScreenWidth;
         float startY = (tile.b1 - cameraY) * zoom + halfScreenHeight;
-        float endX = (tile.a2 - cameraX) * zoom + halfScreenWidth;
-        float endY = (tile.b2 - cameraY) * zoom + halfScreenHeight;
+        float w = tile.w * zoom;
+        float h = tile.h * zoom;
 
         DrawTexturePro(tile.texture.texture,
-                       {0, 0, (float)tileWidth, (float)tileHeight},
-                       {startX, startY, endX - startX, endY - startY},
+                       {0, 0, (float) tileWidth, (float) tileHeight},
+                       {startX, startY, w, h},
                        {0, 0}, 0, WHITE);
 
         // Only for debug
         if (SHOW_PARTS) {
-          DrawRectangleLines(startX, startY, endX - startX, endY - startY, BLUE);
+          DrawRectangleLines(startX, startY, w, h, BLUE);
         }
       }
     }
@@ -545,6 +547,11 @@ int main(int argc, char* argv[]) {
     DrawText(TextFormat("Zoom: %.2f | %.2f", zoom, zoom / prevZoom), 10, SCREEN_HEIGHT - 30, 20, WHITE);
 
     DrawText(TextFormat("%.0f x %.0f", (float)SCREEN_WIDTH, (float)SCREEN_HEIGHT), SCREEN_WIDTH - 10 - MeasureText(TextFormat("%.0f x %.0f", (float)SCREEN_WIDTH, (float)SCREEN_HEIGHT), 20), SCREEN_HEIGHT - 30, 20, WHITE);
+    
+    if (showPointer) {
+      DrawLine(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 5, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 5, WHITE);
+      DrawLine(SCREEN_WIDTH / 2 - 5, SCREEN_HEIGHT / 2, SCREEN_WIDTH / 2 + 5, SCREEN_HEIGHT / 2, WHITE);
+    }
     EndDrawing();
   }
 
