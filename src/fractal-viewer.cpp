@@ -16,10 +16,10 @@ int MAX_ITERATIONS = 2000;
 int TARGET_FPS = 90;
 
 // How many horizontal and vertical tiles to create
-const int partsX = 16;
-const int partsY = 9;
+const int TILES_X = 16;
+const int TILES_Y = 9;
 // Debug tool to visualize the individual tiles (can toggle with LSHIFT)
-bool SHOW_PARTS = false;
+bool SHOW_TILES = false;
 
 // Detaches the threads, makes the app smoother but can cause a lot of visual glitches at high iterations and big zoom
 // If set to false, there are no visual glitches but the app is a lot slower and has freezes at high iterations
@@ -43,14 +43,14 @@ float cameraSpeed = 500.0f;
 long double zoom = 500;
 float zoomSpeed = 0.85f;
 
-int tileWidth, tileHeight;
-float halfScreenWidth, halfScreenHeight;
+float TILE_WIDTH, TILE_HEIGHT;
+float HALF_SCREEN_WIDTH, HALF_SCREEN_HEIGHT;
 
 // Multi-threading
 std::atomic<int> runningThreads(0);
 struct PendingTile {
   int index;
-  long double cx, cy, z;
+  long double cx, cy, cz;
   int generation;
   float maxIterations;
 };
@@ -68,25 +68,26 @@ struct Tile {
   RenderTexture2D texture, oldTexture, veryOldTexture;
   int tileX, tileY;
 
-  // Coordinates of the top left corner and size of the tile when it was computed
-  long double a1, b1, w, h;
+  // Coordinates of the top left corner of the tile, and zoom from when it was scheduled
+  long double x, y, z;
   // Coordinates of the camera when the tile was computed
-  long double cx, cy, z;
+  long double cx, cy, cz;
 
   // Old positions to draw the old texture
-  long double oldA1, oldB1, oldW, oldH;
-  long double veryOldA1, veryOldB1, veryOldW, veryOldH;
-  int generation = 0;
-
+  long double oldX, oldY, oldZ;
+  long double veryOldX, veryOldY, veryOldZ;
+  
+  // Actual pixel information of the tile
   Color *pixels;
   bool hasComputed = false;
+  int generation = 0;
 };
 
 // List of all the tiles
-std::vector<Tile> tiles(partsX *partsY);
+std::vector<Tile> tiles(TILES_X *TILES_Y);
 
 // Compute a tile in the background
-void computeTileThread(int tileIndex, long double cx, long double cy, long double z, int generation, float maxIterations) {
+void computeTileThread(int tileIndex, long double cx, long double cy, long double cz, int generation, float maxIterations) {
   // Add one to the thread counter
   runningThreads.fetch_add(1, std::memory_order_relaxed);
 
@@ -102,29 +103,25 @@ void computeTileThread(int tileIndex, long double cx, long double cy, long doubl
   }
 
   // Compute the pixels
-  int yTileWidth;
-  long double posx, posy;
-  Color *pixels = new Color[tileWidth * tileHeight];
-  for (int y = 0; y < tileHeight; y++) {
-    yTileWidth = y * tileWidth;
-    for (int x = 0; x < tileWidth; x++) {
-      posx = (x + tile.tileX * tileWidth - halfScreenWidth) / z + cx;
-      posy = (y + tile.tileY * tileHeight - halfScreenHeight) / z + cy;
+  int jTileWidth;
+  long double x, y;
+  Color *pixels = new Color[TILE_WIDTH * TILE_HEIGHT];
+  for (int j = 0; j < TILE_HEIGHT; j++) {
+    jTileWidth = j * TILE_WIDTH;
+    for (int i = 0; i < TILE_WIDTH; i++) {
+      x = (i + tile.tileX * TILE_WIDTH - HALF_SCREEN_WIDTH) / cz + cx;
+      y = (j + tile.tileY * TILE_HEIGHT - HALF_SCREEN_HEIGHT) / cz + cy;
 
-      if (SET == 0) {
-        pixels[yTileWidth + x] = getColorFromPoint_Mandelbrot(posx, posy, maxIterations);
-      } else if (SET == 1) {
-        pixels[yTileWidth + x] = getColorFromPoint_Julia(posx, posy, maxIterations);
-      } else if (SET == 2) {
-        pixels[yTileWidth + x] = getColorFromPoint_BurningShip(posx, posy, maxIterations);
-      } else if (SET == 3) {
-        pixels[yTileWidth + x] = getColorFromPoint_Tricorn(posx, posy, maxIterations);
-      } else if (SET == 4) {
-        pixels[yTileWidth + x] = getColorFromPoint_Phoenix(posx, posy, maxIterations);
-      } else if (SET == 5) {
-        pixels[yTileWidth + x] = getColorFromPoint_Lyapunov(posx, posy, maxIterations);
-      } else if (SET == 6) {
-        pixels[yTileWidth + x] = getColorFromPoint_Mandelbrot_LightEffect(posx, posy, maxIterations);
+      switch (SET) {
+        case 0: pixels[jTileWidth + i] = getColorFromPoint_Mandelbrot(x, y, maxIterations);  break;
+        case 1: pixels[jTileWidth + i] = getColorFromPoint_Julia(x, y, maxIterations);  break;
+        case 2: pixels[jTileWidth + i] = getColorFromPoint_BurningShip(x, y, maxIterations);  break;
+        case 3: pixels[jTileWidth + i] = getColorFromPoint_Tricorn(x, y, maxIterations);  break;
+        case 4: pixels[jTileWidth + i] = getColorFromPoint_Phoenix(x, y, maxIterations);  break;
+        case 5: pixels[jTileWidth + i] = getColorFromPoint_Lyapunov(x, y, maxIterations);  break;
+        case 6: pixels[jTileWidth + i] = getColorFromPoint_Mandelbrot_LightEffect(x, y, maxIterations);  break;
+        
+        default: break;
       }
     }
   }
@@ -138,7 +135,7 @@ void computeTileThread(int tileIndex, long double cx, long double cy, long doubl
       tile.hasComputed = true;
       tile.cx = cx;
       tile.cy = cy;
-      tile.z = z;
+      tile.cz = cz;
     }
   }
 
@@ -147,13 +144,13 @@ void computeTileThread(int tileIndex, long double cx, long double cy, long doubl
 }
 
 // Do a spiral
-std::vector<int> getSpiralIndicesOutward(int partsX, int partsY) {
+std::vector<int> getSpiralIndicesOutward(int TILES_X, int TILES_Y) {
   std::vector<int> result;
-  std::vector<std::vector<bool>> visited(partsY, std::vector<bool>(partsX, false));
+  std::vector<std::vector<bool>> visited(TILES_Y, std::vector<bool>(TILES_X, false));
 
   // Starting position (center)
-  int startX = partsX / 2;
-  int startY = partsY / 2;
+  int startX = TILES_X / 2;
+  int startY = TILES_Y / 2;
 
   // Direction vectors: right, down, left, up
   int dx[] = {1, 0, -1, 0};
@@ -164,17 +161,17 @@ std::vector<int> getSpiralIndicesOutward(int partsX, int partsY) {
   int steps = 1;
 
   // Add center point
-  result.push_back(x + y * partsX);
+  result.push_back(x + y * TILES_X);
   visited[y][x] = true;
 
-  while (result.size() < partsX * partsY) {
+  while (result.size() < TILES_X * TILES_Y) {
     for (int i = 0; i < 2; i++) { // Move in current direction twice per spiral layer
       for (int step = 0; step < steps; step++) {
         x += dx[direction];
         y += dy[direction];
 
-        if (x >= 0 && x < partsX && y >= 0 && y < partsY && !visited[y][x]) {
-          result.push_back(x + y * partsX);
+        if (x >= 0 && x < TILES_X && y >= 0 && y < TILES_Y && !visited[y][x]) {
+          result.push_back(x + y * TILES_X);
           visited[y][x] = true;
         }
       }
@@ -187,14 +184,14 @@ std::vector<int> getSpiralIndicesOutward(int partsX, int partsY) {
 }
 
 // Launch all tile updates in parallel
-std::vector<int> spiralIndicesOutward = getSpiralIndicesOutward(partsX, partsY);
-void updateTilesParallel(long double cx, long double cy, long double z, int generation, float maxIterations, long double diffX, long double diffY) {
+std::vector<int> spiralIndicesOutward = getSpiralIndicesOutward(TILES_X, TILES_Y);
+void updateTilesParallel(long double cx, long double cy, long double cz, int generation, float maxIterations, long double diffX, long double diffY) {
   int tileCount = tiles.size();
 
   if (DETACHED_MODE) {
     // Adds the tile to the queue, with all needed information to compute the pixels
-    auto scheduleTile = [cx, cy, z, generation, maxIterations] (int i) {
-      PendingTile pendingTile = {i, cx, cy, z, generation, maxIterations};
+    auto scheduleTile = [cx, cy, cz, generation, maxIterations] (int i) {
+      PendingTile pendingTile = {i, cx, cy, cz, generation, maxIterations};
 
       // Remove tile from pending list if it was already scheduled (optional, but makes the app faster)
       if (AVOID_DUPLICATES && tilesScheduled.find(i) != tilesScheduled.end()) {
@@ -223,17 +220,17 @@ void updateTilesParallel(long double cx, long double cy, long double z, int gene
     if (diffX >= 0) {
       if (diffY >= 0) {
         // Top left
-        for (int i = 0; i < partsX; ++i) {
-          for (int j = 0; j < partsY; ++j) {
-            scheduleTile(j * partsX + i);
+        for (int i = 0; i < TILES_X; ++i) {
+          for (int j = 0; j < TILES_Y; ++j) {
+            scheduleTile(j * TILES_X + i);
           }
         }
       }
       else {
         // Bottom left
-        for (int i = 0; i < partsX; ++i) {
-          for (int j = partsY - 1; j >= 0; --j) {
-            scheduleTile(j * partsX + i);
+        for (int i = 0; i < TILES_X; ++i) {
+          for (int j = TILES_Y - 1; j >= 0; --j) {
+            scheduleTile(j * TILES_X + i);
           }
         }
       }
@@ -241,17 +238,17 @@ void updateTilesParallel(long double cx, long double cy, long double z, int gene
     else {
       if (diffY >= 0) {
         // Top right
-        for (int i = partsX - 1; i >= 0; --i) {
-          for (int j = 0; j < partsY; ++j) {
-            scheduleTile(j * partsX + i);
+        for (int i = TILES_X - 1; i >= 0; --i) {
+          for (int j = 0; j < TILES_Y; ++j) {
+            scheduleTile(j * TILES_X + i);
           }
         }
       }
       else {
         // Bottom right
-        for (int i = partsX - 1; i >= 0; --i) {
-          for (int j = partsY - 1; j >= 0; --j) {
-            scheduleTile(j * partsX + i);
+        for (int i = TILES_X - 1; i >= 0; --i) {
+          for (int j = TILES_Y - 1; j >= 0; --j) {
+            scheduleTile(j * TILES_X + i);
           }
         }
       }
@@ -261,7 +258,7 @@ void updateTilesParallel(long double cx, long double cy, long double z, int gene
     // Compute all threads at the same time
     std::vector<std::thread> workers;
     for (int i = 0; i < tileCount; ++i) {
-      workers.emplace_back(computeTileThread, i, cx, cy, z, generation, maxIterations);
+      workers.emplace_back(computeTileThread, i, cx, cy, cz, generation, maxIterations);
     }
     for (auto &t : workers) {
       t.join(); // waits for all threads
@@ -286,8 +283,8 @@ int main(int argc, char* argv[]) {
       MAX_ITERATIONS = std::stoi(argv[++i]);
     } else if (arg == "--fps") {
       TARGET_FPS = std::stoi(argv[++i]);
-    } else if (arg == "--show-parts") {
-      SHOW_PARTS = true;
+    } else if (arg == "--show-tiles") {
+      SHOW_TILES = true;
     } else if (arg == "--no-detached") {
       DETACHED_MODE = false;
     } else if (arg == "--no-avoid-duplicates") {
@@ -313,8 +310,8 @@ int main(int argc, char* argv[]) {
     HideCursor();
     SCREEN_WIDTH = GetScreenWidth();
     SCREEN_HEIGHT = GetScreenHeight() - 35;
-    tileWidth = SCREEN_WIDTH / partsX;
-    tileHeight = SCREEN_HEIGHT / partsY;
+    TILE_WIDTH = SCREEN_WIDTH / TILES_X;
+    TILE_HEIGHT = SCREEN_HEIGHT / TILES_Y;
   }
   else {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Fractal Explorer - Multi-threaded");
@@ -322,22 +319,22 @@ int main(int argc, char* argv[]) {
   SetTargetFPS(TARGET_FPS);
 
   // Compute values based of the given flags
-  tileWidth = SCREEN_WIDTH / partsX;
-  tileHeight = SCREEN_HEIGHT / partsY;
-  halfScreenWidth = SCREEN_WIDTH / 2.0;
-  halfScreenHeight = SCREEN_HEIGHT / 2.0;
+  TILE_WIDTH = SCREEN_WIDTH / TILES_X;
+  TILE_HEIGHT = SCREEN_HEIGHT / TILES_Y;
+  HALF_SCREEN_WIDTH = SCREEN_WIDTH / 2.0;
+  HALF_SCREEN_HEIGHT = SCREEN_HEIGHT / 2.0;
   const float cameraMovementPerFrame = cameraSpeed / TARGET_FPS;
   const float zoomPerFrame = zoomSpeed / TARGET_FPS;
 
   // Create tile textures
-  for (int y = 0; y < partsY; y++) {
-    for (int x = 0; x < partsX; x++) {
-      Tile &tile = tiles[y * partsX + x];
+  for (int y = 0; y < TILES_Y; y++) {
+    for (int x = 0; x < TILES_X; x++) {
+      Tile &tile = tiles[y * TILES_X + x];
       tile.tileX = x;
       tile.tileY = y;
-      tile.texture = LoadRenderTexture(tileWidth, tileHeight);
-      tile.oldTexture = LoadRenderTexture(tileWidth, tileHeight);
-      tile.veryOldTexture = LoadRenderTexture(tileWidth, tileHeight);
+      tile.texture = LoadRenderTexture(TILE_WIDTH, TILE_HEIGHT);
+      tile.oldTexture = LoadRenderTexture(TILE_WIDTH, TILE_HEIGHT);
+      tile.veryOldTexture = LoadRenderTexture(TILE_WIDTH, TILE_HEIGHT);
     }
   }
 
@@ -370,10 +367,19 @@ int main(int argc, char* argv[]) {
     if (IsKeyDown(KEY_D)) { cameraX += cameraMovementPerFrame / zoom; }
     if (IsKeyDown(KEY_UP)) { zoom *= (1 + zoomPerFrame); }
     if (IsKeyDown(KEY_DOWN)) { zoom *= (1 - zoomPerFrame); }
-    if (IsKeyPressed(KEY_LEFT_SHIFT)) { SHOW_PARTS = !SHOW_PARTS; }
     if (IsKeyPressed(KEY_V)) { showPointer = !showPointer; }
-    // Change number of iterations
-    if (IsKeyPressed(KEY_LEFT)) {
+    // Debug tools
+    if (IsKeyPressed(KEY_LEFT_SHIFT)) { SHOW_TILES = !SHOW_TILES; }
+    if (IsKeyPressed(KEY_O)) { // Change set (-1)
+      SET = (SET - 1) % 7;
+      if (SET < 0) { SET = 7 + SET; }
+      customUpdateTilesParallel();
+    }
+    if (IsKeyPressed(KEY_P)) { // Change set (+1)
+      SET = (SET + 1) % 7;
+      customUpdateTilesParallel();
+    }
+    if (IsKeyPressed(KEY_LEFT)) { // Change number of iterations
       maxIterations -= 100;
       customUpdateTilesParallel();
     }
@@ -399,7 +405,7 @@ int main(int argc, char* argv[]) {
       customUpdateTilesParallel();
     }
 
-    // Do the threads
+    // Start to render pending tiles
     while (runningThreads.load(std::memory_order_relaxed) < MAX_THREADS && !pendingTiles.empty()) {
       PendingTile next = pendingTiles.front();
       pendingTiles.pop_front();
@@ -408,7 +414,7 @@ int main(int argc, char* argv[]) {
       // Check that the tile has not already been computed by a newer generation
       Tile &tile = tiles[next.index];
       if (next.generation - tile.generation >= 0) {
-        std::thread(computeTileThread, next.index, next.cx, next.cy, next.z, next.generation, next.maxIterations).detach();
+        std::thread(computeTileThread, next.index, next.cx, next.cy, next.cz, next.generation, next.maxIterations).detach();
       }
     }
 
@@ -423,34 +429,31 @@ int main(int argc, char* argv[]) {
           // Draw oldTexture on veryOldTexture
           BeginTextureMode(tile.veryOldTexture);
           DrawTexturePro(tile.oldTexture.texture,
-                         {0, (float)tileHeight, (float)tileWidth, (float)-tileHeight},
-                         {0, 0, (float)tileWidth, (float)tileHeight},
+                         {0, TILE_HEIGHT, TILE_WIDTH, -TILE_HEIGHT},
+                         {0, 0, TILE_WIDTH, TILE_HEIGHT},
                          {0, 0}, 0, WHITE);
           EndTextureMode();
-          tile.veryOldA1 = tile.oldA1;
-          tile.veryOldB1 = tile.oldB1;
-          tile.veryOldW = tile.oldW;
-          tile.veryOldH = tile.oldH;
+          tile.veryOldX = tile.oldX;
+          tile.veryOldY = tile.oldY;
+          tile.veryOldZ = tile.oldZ;
 
           // Draw texture on oldTexture
           BeginTextureMode(tile.oldTexture);
           DrawTexturePro(tile.texture.texture,
-                         {0, (float)tileHeight, (float)tileWidth, (float)-tileHeight},
-                         {0, 0, (float)tileWidth, (float)tileHeight},
+                         {0, TILE_HEIGHT, TILE_WIDTH, -TILE_HEIGHT},
+                         {0, 0, TILE_WIDTH, TILE_HEIGHT},
                          {0, 0}, 0, WHITE);
           EndTextureMode();
-          tile.oldA1 = tile.a1;
-          tile.oldB1 = tile.b1;
-          tile.oldW = tile.w;
-          tile.oldH = tile.h;
+          tile.oldX = tile.x;
+          tile.oldY = tile.y;
+          tile.oldZ = tile.z;
         }
 
         // Save the old camera position from when it was computed
         UpdateTexture(tile.texture.texture, tile.pixels);
-        tile.a1 = (tile.tileX * tileWidth - halfScreenWidth) / tile.z + tile.cx;
-        tile.b1 = (tile.tileY * tileHeight - halfScreenHeight) / tile.z + tile.cy;
-        tile.w = tileWidth / tile.z;
-        tile.h = tileHeight / tile.z;
+        tile.x = (tile.tileX * TILE_WIDTH - HALF_SCREEN_WIDTH) / tile.cz + tile.cx;
+        tile.y = (tile.tileY * TILE_HEIGHT - HALF_SCREEN_HEIGHT) / tile.cz + tile.cy;
+        tile.z = tile.cz;
 
         delete[] tile.pixels;
         tile.hasComputed = false;
@@ -469,19 +472,19 @@ int main(int argc, char* argv[]) {
           std::lock_guard<std::mutex> lock(tile.texMutex);
 
           // Calculate the right position to show the old pixels, based on where they were computed
-          float startX = (tile.veryOldA1 - cameraX) * zoom + halfScreenWidth;
-          float startY = (tile.veryOldB1 - cameraY) * zoom + halfScreenHeight;
-          float w = tile.veryOldW * zoom;
-          float h = tile.veryOldH * zoom;
+          float x = (tile.veryOldX - cameraX) * zoom + HALF_SCREEN_WIDTH;
+          float y = (tile.veryOldY - cameraY) * zoom + HALF_SCREEN_HEIGHT;
+          float w = TILE_WIDTH / tile.veryOldZ * zoom;
+          float h = TILE_HEIGHT / tile.veryOldZ * zoom;
 
           DrawTexturePro(tile.veryOldTexture.texture,
-                         {0, 0, (float) tileWidth, (float) tileHeight},
-                         {startX, startY, w, h},
+                         {0, 0, TILE_WIDTH, TILE_HEIGHT},
+                         {x, y, w, h},
                          {0, 0}, 0, WHITE);
 
           // Only for debug
-          if (SHOW_PARTS) {
-            DrawRectangleLines(startX, startY, w, h, GREEN);
+          if (SHOW_TILES) {
+            DrawRectangleLines(x, y, w, h, GREEN);
           }
         }
       }
@@ -492,19 +495,19 @@ int main(int argc, char* argv[]) {
           std::lock_guard<std::mutex> lock(tile.texMutex);
 
           // Calculate the right position to show the old pixels, based on where they were computed
-          float startX = (tile.oldA1 - cameraX) * zoom +  halfScreenWidth;
-          float startY = (tile.oldB1 - cameraY) * zoom + halfScreenHeight;
-          float w = tile.oldW * zoom;
-          float h = tile.oldH * zoom;
+          float x = (tile.oldX - cameraX) * zoom +  HALF_SCREEN_WIDTH;
+          float y = (tile.oldY - cameraY) * zoom + HALF_SCREEN_HEIGHT;
+          float w = TILE_WIDTH / tile.oldZ * zoom;
+          float h = TILE_HEIGHT / tile.oldZ * zoom;
 
           DrawTexturePro(tile.oldTexture.texture,
-                         {0, 0, (float) tileWidth, (float) tileHeight},
-                         {startX, startY, w, h},
+                         {0, 0, TILE_WIDTH, TILE_HEIGHT},
+                         {x, y, w, h},
                          {0, 0}, 0, WHITE);
 
           // Only for debug
-          if (SHOW_PARTS) {
-            DrawRectangleLines(startX, startY, w, h, RED);
+          if (SHOW_TILES) {
+            DrawRectangleLines(x, y, w, h, RED);
           }
         }
       }
@@ -516,37 +519,37 @@ int main(int argc, char* argv[]) {
         std::lock_guard<std::mutex> lock(tile.texMutex);
 
         // Calculate the right position to show the pixels, based on where they were computed
-        float startX = (tile.a1 - cameraX) * zoom + halfScreenWidth;
-        float startY = (tile.b1 - cameraY) * zoom + halfScreenHeight;
-        float w = tile.w * zoom;
-        float h = tile.h * zoom;
+        float x = (tile.x - cameraX) * zoom + HALF_SCREEN_WIDTH;
+        float y = (tile.y - cameraY) * zoom + HALF_SCREEN_HEIGHT;
+        float w = TILE_WIDTH / tile.z * zoom;
+        float h = TILE_HEIGHT / tile.z * zoom;
 
         DrawTexturePro(tile.texture.texture,
-                       {0, 0, (float) tileWidth, (float) tileHeight},
-                       {startX, startY, w, h},
+                       {0, 0, TILE_WIDTH, TILE_HEIGHT},
+                       {x, y, w, h},
                        {0, 0}, 0, WHITE);
 
         // Only for debug
-        if (SHOW_PARTS) {
-          DrawRectangleLines(startX, startY, w, h, BLUE);
+        if (SHOW_TILES) {
+          DrawRectangleLines(x, y, w, h, BLUE);
         }
       }
     }
 
     // Draw UI
     DrawText(TextFormat("Iterations: %.0f", maxIterations), 10, 10, 20, WHITE);
-    DrawText(TextFormat("Generation: %.0f", (float)generation), 10, 30, 20, WHITE);
-    DrawText(TextFormat("Tiles: %.0f", (float)partsX * partsY), 10, 50, 20, WHITE);
+    DrawText(TextFormat("Generation: %.0f", (float) generation), 10, 30, 20, WHITE);
+    DrawText(TextFormat("Tiles: %.0f", (float) (TILES_X * TILES_Y)), 10, 50, 20, WHITE);
 
-    DrawText(TextFormat("Threads: %.0f", (float)runningThreads.load(std::memory_order_relaxed)), SCREEN_WIDTH - 10 - MeasureText(TextFormat("Threads: %.0f", (float)runningThreads.load(std::memory_order_relaxed)), 20), 10, 20, WHITE);
-    DrawText(TextFormat("Queue: %.0f", (float)pendingTiles.size()), SCREEN_WIDTH - 10 - MeasureText(TextFormat("Queue: %.0f", (float)pendingTiles.size()), 20), 30, 20, WHITE);
-    DrawText(TextFormat("FPS: %.0f", (float)GetFPS()), SCREEN_WIDTH - 10 - MeasureText(TextFormat("FPS: %.0f", (float)GetFPS()), 20), 50, 20, WHITE);
+    DrawText(TextFormat("Threads: %.0f", (float) runningThreads.load(std::memory_order_relaxed)), SCREEN_WIDTH - 10 - MeasureText(TextFormat("Threads: %.0f", (float) runningThreads.load(std::memory_order_relaxed)), 20), 10, 20, WHITE);
+    DrawText(TextFormat("Queue: %.0f", (float) pendingTiles.size()), SCREEN_WIDTH - 10 - MeasureText(TextFormat("Queue: %.0f", (float) pendingTiles.size()), 20), 30, 20, WHITE);
+    DrawText(TextFormat("FPS: %.0f", (float) GetFPS()), SCREEN_WIDTH - 10 - MeasureText(TextFormat("FPS: %.0f", (float) GetFPS()), 20), 50, 20, WHITE);
 
-    DrawText(TextFormat("Camera X: %.15f", (float)cameraX), 10, SCREEN_HEIGHT - 70, 20, WHITE);
-    DrawText(TextFormat("Camera Y: %.15f", (float)cameraY), 10, SCREEN_HEIGHT - 50, 20, WHITE);
+    DrawText(TextFormat("Camera X: %.15f", (float) cameraX), 10, SCREEN_HEIGHT - 70, 20, WHITE);
+    DrawText(TextFormat("Camera Y: %.15f", (float) cameraY), 10, SCREEN_HEIGHT - 50, 20, WHITE);
     DrawText(TextFormat("Zoom: %.2f | %.2f", zoom, zoom / prevZoom), 10, SCREEN_HEIGHT - 30, 20, WHITE);
 
-    DrawText(TextFormat("%.0f x %.0f", (float)SCREEN_WIDTH, (float)SCREEN_HEIGHT), SCREEN_WIDTH - 10 - MeasureText(TextFormat("%.0f x %.0f", (float)SCREEN_WIDTH, (float)SCREEN_HEIGHT), 20), SCREEN_HEIGHT - 30, 20, WHITE);
+    DrawText(TextFormat("%.0f x %.0f", (float) SCREEN_WIDTH, (float) SCREEN_HEIGHT), SCREEN_WIDTH - 10 - MeasureText(TextFormat("%.0f x %.0f", (float) SCREEN_WIDTH, (float) SCREEN_HEIGHT), 20), SCREEN_HEIGHT - 30, 20, WHITE);
     
     if (showPointer) {
       DrawLine(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 - 5, SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 5, WHITE);
@@ -566,9 +569,9 @@ int main(int argc, char* argv[]) {
 
   // To then copy and paste if needed
   std::cout << "## Final view ##" << std::endl;
-  std::cout << TextFormat("Zoom: %.36f", (float)zoom) << std::endl;
-  std::cout << TextFormat("Camera X: %.36f", (float)cameraX) << std::endl;
-  std::cout << TextFormat("Camera Y: %.36f", (float)cameraY) << std::endl;
+  std::cout << TextFormat("Zoom: %.36f", (float) zoom) << std::endl;
+  std::cout << TextFormat("Camera X: %.36f", (float) cameraX) << std::endl;
+  std::cout << TextFormat("Camera Y: %.36f", (float) cameraY) << std::endl;
 
   return 0;
 }

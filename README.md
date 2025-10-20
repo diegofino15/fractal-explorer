@@ -31,7 +31,7 @@ The CMakeLists.txt file contains code to compile another executable called **vid
 --fullscreen : Sets the app to fullscreen
 --width [value] : Sets the width of the window (in pixels)
 --height [value] : Sets the height of the window (in pixels)
---set [value] : Fractal to display (0 : Mandelbrot | 1 : Julia | 2 : Burning ship | 3 : Tricorn | 4 : Phoenix | 5 : Lyapunov | 6 : Mandelbrot with "light effect")
+--set [value] : Fractal to display (0 : Mandelbrot | 1 : Julia | 2 : Burning ship | 3 : Tricorn | 4 : Phoenix | 5 : Lyapunov | 6 : Mandelbrot with "light effect") (can change with O and P)
 --it [value] : Sets the maximum number of iterations (can change with LEFT-ARROW and RIGHT-ARROW)
 --fps [value] : Sets the target FPS
 ```
@@ -47,7 +47,7 @@ The CMakeLists.txt file contains code to compile another executable called **vid
 
 ### Advanced settings
 ```
---show-parts : Shows the individual tiles (can toggle with LSHIFT)
+--show-tiles : Shows the individual tiles (can toggle with LSHIFT)
 --no-detached : Will not detach the threads, makes the app stutter but will show no visual glitches
 --no-avoid-duplicates : Will not avoid unnecessary re-renders of the same tile, improves transitions but slows down the app a lot
 --no-old-textures : Will make the app a lot faster but will show many visual glitches (black spots)

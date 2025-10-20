@@ -40,6 +40,16 @@
     "string_view": "cpp",
     "typeinfo": "cpp",
     "algorithm": "cpp",
-    "optional": "cpp"
+    "optional": "cpp",
+    "__bit_reference": "cpp",
+    "array": "cpp",
+    "cctype": "cpp",
+    "clocale": "cpp",
+    "cwctype": "cpp",
+    "queue": "cpp",
+    "ratio": "cpp",
+    "stack": "cpp",
+    "variant": "cpp",
+    "vector": "cpp"
   }
 }
